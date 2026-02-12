@@ -33,7 +33,11 @@ const useTelegram = () => {
         }
     }, []);
 
-    return { webApp };
+    return {
+        webApp,
+        initData: webApp?.initData || '',
+        user: webApp?.initDataUnsafe?.user || mockWebApp.initDataUnsafe.user
+    };
 };
 
 export default useTelegram;

@@ -13,9 +13,15 @@ declare global {
 }
 
 export const verifyTelegramWebAppData = (req: Request, res: Response, next: NextFunction) => {
-    const initData = req.headers['x-telegram-init-data'];
+    let initData = req.headers['x-telegram-init-data'] as string;
 
-    if (!initData || typeof initData !== 'string') {
+    // Also support Authorization: Bearer <initData>
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        initData = authHeader.substring(7);
+    }
+
+    if (!initData) {
         return res.status(401).json({ error: 'Auth data missing' });
     }
 

@@ -1,34 +1,141 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
-  color-scheme: light dark;
-  background-color: #f0f2f5;
-  color: #333333;
+@layer base {
+  :root {
+    --primary-neon: #00FF88;
+    --primary-dark: #050505;
+    --accents-1: #111111;
+    --accents-2: #333333;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --neon-glow: 0 0 20px rgba(0, 255, 136, 0.3);
+    --neon-glow-strong: 0 0 30px rgba(0, 255, 136, 0.5);
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  body {
+    @apply bg-[#050505] text-white antialiased selection:bg-emerald-500/30;
+    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  justify-content: center;
-  min-width: 320px;
-  min-height: 100vh;
+@layer components {
+
+  /* Premium Glass Cards */
+  .glass-card {
+    @apply relative overflow-hidden bg-white/[0.03] backdrop-blur-3xl border border-white/[0.08] rounded-[2rem];
+  }
+
+  .glass-card-bright {
+    @apply relative overflow-hidden bg-emerald-500/[0.05] backdrop-blur-3xl border border-emerald-500/20 rounded-[2rem];
+  }
+
+  /* Sleek Glossy Buttons */
+  .btn-sleek-primary {
+    @apply relative overflow-hidden flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-bold transition-all duration-300;
+    background-color: #00FF88;
+    color: black;
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+  }
+
+  .btn-sleek-primary:hover {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+    transform: scale(1.02);
+  }
+
+  .btn-sleek-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-sleek-secondary {
+    @apply relative overflow-hidden flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-semibold transition-all duration-300;
+    @apply bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/10 hover:border-white/20;
+  }
+
+  /* Typography */
+  .text-neon {
+    @apply text-[#00FF88];
+    text-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-emerald-400 to-cyan-400;
+  }
+
+  .text-muted {
+    @apply text-white/50;
+  }
+
+  /* Decorations */
+  .mesh-gradient {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(0, 255, 136, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 1) 0%, rgba(5, 5, 5, 1) 100%);
+  }
+
+  /* Bottom Nav Glass */
+  .nav-glass {
+    @apply fixed bottom-6 left-6 right-6 h-20 bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] px-8 z-50;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  }
 }
 
-#root {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  text-align: center;
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse-neon {
+  0% {
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  }
+
+  100% {
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.2);
+  }
+}
+
+.pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
 }

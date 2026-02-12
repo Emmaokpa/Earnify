@@ -1,3 +1,4 @@
+/** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
@@ -5,13 +6,25 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: "#0088cc", // Telegram Blue
-        secondary: "#1c2e4a",
-        accent: "#f5a623",
-        background: "#f0f2f5",
-        text: "#333333",
+      fontFamily: {
+        'sans': ['Outfit', 'sans-serif'],
       },
+      colors: {
+        'primary-neon': '#00FF88',
+        'primary-dark': '#050505',
+      },
+      backgroundImage: {
+        'glass-gradient': 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)',
+      },
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+      },
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        }
+      }
     },
   },
   plugins: [],

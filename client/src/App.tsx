@@ -5,6 +5,7 @@ import Earn from './pages/Earn';
 import Referrals from './pages/Referrals';
 import Withdraw from './pages/Withdraw';
 import Admin from './pages/Admin';
+import Games from './pages/Games';
 import BottomNav from './components/BottomNav';
 import useTelegram from './hooks/useTelegram';
 import config from './config';
@@ -49,11 +50,12 @@ function App() {
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="w-full"
             >
-                {activeTab === 'home' && <Dashboard />}
+                {activeTab === 'home' && <Dashboard onNavigate={setActiveTab} />}
                 {activeTab === 'earn' && <Earn />}
                 {activeTab === 'referrals' && <Referrals />}
                 {activeTab === 'withdraw' && <Withdraw />}
                 {activeTab === 'admin' && <Admin />}
+                {activeTab === 'games' && <Games />}
             </motion.div>
         );
     };

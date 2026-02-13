@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Home, Zap, Users, Wallet, Plus } from 'lucide-react';
+import { Home, Zap, Users, Wallet, Plus, Gamepad2 } from 'lucide-react';
 
 interface BottomNavProps {
     activeTab: string;
@@ -10,6 +10,7 @@ const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
     const tabs = [
         { id: 'home', icon: Home, label: 'Home' },
         { id: 'earn', icon: Zap, label: 'Earn' },
+        { id: 'games', icon: Gamepad2, label: 'Games' },
         { id: 'admin', icon: Plus, label: 'Ops' },
         { id: 'referrals', icon: Users, label: 'Refer' },
         { id: 'withdraw', icon: Wallet, label: 'Wallet' },

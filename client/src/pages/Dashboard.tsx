@@ -13,13 +13,15 @@ import {
     History,
     Info,
     ExternalLink,
-    Gamepad2
+    Gamepad2,
+    Home,
+    Plus
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
 
-const Dashboard = () => {
+const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const { webApp, initData } = useTelegram();
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState<any>(null);
@@ -310,7 +312,7 @@ const Dashboard = () => {
                         subtitle="Earn Gaming"
                         reward="Win ₦"
                         color="#A855F7"
-                        onClick={() => alert('PlayGama Zone coming soon!')}
+                        onClick={() => onNavigate?.('games')}
                     />
                 </motion.section>
 

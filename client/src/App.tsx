@@ -6,6 +6,8 @@ import Referrals from './pages/Referrals';
 import Withdraw from './pages/Withdraw';
 import Admin from './pages/Admin';
 import Games from './pages/Games';
+import Social from './pages/Social';
+import Premium from './pages/Premium';
 import BottomNav from './components/BottomNav';
 import useTelegram from './hooks/useTelegram';
 import config from './config';
@@ -19,7 +21,7 @@ function App() {
         if (webApp) {
             webApp.expand();
             if (webApp.isVersionAtLeast('6.1') && webApp.setHeaderColor) {
-                webApp.setHeaderColor('#050505');
+                webApp.setHeaderColor('#0E0E0E');
             }
         }
 
@@ -47,11 +49,13 @@ function App() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.02 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="w-full"
+                transition={{ duration: 0.2 }}
+                className="w-full relative z-10"
             >
                 {activeTab === 'home' && <Dashboard onNavigate={setActiveTab} />}
                 {activeTab === 'earn' && <Earn />}
+                {activeTab === 'social' && <Social />}
+                {activeTab === 'premium' && <Premium />}
                 {activeTab === 'referrals' && <Referrals />}
                 {activeTab === 'withdraw' && <Withdraw />}
                 {activeTab === 'admin' && <Admin />}
@@ -62,20 +66,27 @@ function App() {
 
     if (initData && !isAuth) {
         return (
-            <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+            <div className="min-h-screen bg-[#0E0E0E] flex flex-col items-center justify-center relative">
+                <div className="gradient-mesh" />
                 <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-10 h-10 border-4 border-[#00FF88] border-t-transparent rounded-full shadow-[0_0_15px_rgba(0,255,136,0.3)]"
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    className="w-10 h-10 border-4 border-[#B2FF41]/20 border-t-[#B2FF41] rounded-full"
                 />
+                <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-6 text-white/40 font-bold uppercase tracking-[0.2em] text-[10px]"
+                >
+                    Loading Protocol
+                </motion.p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#050505] selection:bg-emerald-500/30">
-            {/* Global Background Decoration */}
-            <div className="mesh-gradient" />
+        <div className="min-h-screen bg-[#0E0E0E] font-inter">
+            <div className="gradient-mesh" />
 
             <AnimatePresence mode="wait">
                 {renderContent()}

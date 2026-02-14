@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Home, Zap, Users, Wallet, Plus, Gamepad2 } from 'lucide-react';
+import { Home, Zap, Gamepad2, Users, Wallet, Share2, Crown } from 'lucide-react';
 
 interface BottomNavProps {
     activeTab: string;
@@ -8,82 +8,62 @@ interface BottomNavProps {
 
 const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
     const tabs = [
-        { id: 'home', icon: Home, label: 'Home' },
-        { id: 'earn', icon: Zap, label: 'Earn' },
-        { id: 'games', icon: Gamepad2, label: 'Games' },
-        { id: 'admin', icon: Plus, label: 'Ops' },
-        { id: 'referrals', icon: Users, label: 'Refer' },
-        { id: 'withdraw', icon: Wallet, label: 'Wallet' },
+        { id: 'home', icon: Home, label: 'Portal' },
+        { id: 'earn', icon: Zap, label: 'Nodes' },
+        { id: 'social', icon: Share2, label: 'Nexus' },
+        { id: 'premium', icon: Crown, label: 'VIP' },
+        { id: 'withdraw', icon: Wallet, label: 'Vault' },
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-6 pt-10 pointer-events-none">
-            {/* Dynamic Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#00FF88]/10 to-transparent h-40 mt-auto pointer-events-none opacity-50" />
+        <div className="fixed bottom-0 left-0 right-0 z-[100] px-6 pb-8 pt-2">
+            <div className="max-w-md mx-auto nav-pill">
+                {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
 
-            <div className="max-w-md mx-auto relative pointer-events-auto">
-                <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                    className="nav-glass flex items-center justify-between px-2 !fixed !relative !bottom-0 !left-0 !right-0 h-20 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-white/10"
-                >
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => onTabChange(tab.id)}
+                            className="relative flex flex-col items-center justify-center min-w-[60px] h-full outline-none"
+                        >
+                            {isActive && (
+                                <motion.div
+                                    layoutId="nav-glow"
+                                    className="absolute inset-0 bg-[#B2FF41]/10 rounded-3xl blur-xl"
+                                    initial={false}
+                                />
+                            )}
 
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => onTabChange(tab.id)}
-                                className="relative flex flex-col items-center justify-center flex-1 h-full outline-none group overflow-hidden first:rounded-l-[1.8rem] last:rounded-r-[1.8rem]"
+                            <Icon
+                                size={24}
+                                strokeWidth={isActive ? 2.5 : 2}
+                                className={`transition-all duration-500 relative z-10 ${isActive
+                                    ? 'text-[#B2FF41] drop-shadow-[0_0_8px_rgba(178,255,65,0.6)]'
+                                    : 'text-white/20'
+                                    }`}
+                            />
+
+                            <motion.span
+                                initial={false}
+                                animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0, y: 5 }}
+                                className={`text-[9px] font-black uppercase tracking-widest mt-1 transition-all ${isActive ? 'text-[#B2FF41]' : 'text-transparent'
+                                    }`}
                             >
-                                {/* Active Backdrop Highlight */}
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="nav-glow"
-                                        className="absolute inset-2 bg-[#00FF88]/10 rounded-2xl z-0"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
-                                    >
-                                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[2px] bg-[#00FF88] shadow-[0_0_10px_#00FF88]" />
-                                    </motion.div>
-                                )}
+                                {tab.label}
+                            </motion.span>
 
-                                <div className="relative z-10 flex flex-col items-center gap-1.5 pt-1">
-                                    <motion.div
-                                        animate={isActive ? { y: -2, scale: 1.1 } : { y: 0, scale: 1 }}
-                                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                                    >
-                                        <Icon
-                                            size={20}
-                                            className={`transition-all duration-500 ${isActive ? 'text-[#00FF88] drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]' : 'text-white/20 group-hover:text-white/40'
-                                                }`}
-                                            fill={isActive ? 'rgba(0, 255, 136, 0.2)' : 'none'}
-                                        />
-                                    </motion.div>
-
-                                    <motion.span
-                                        animate={isActive ? { opacity: 1, scale: 1 } : { opacity: 0.4, scale: 0.9 }}
-                                        className={`text-[9px] font-black uppercase tracking-[0.2em] ${isActive ? 'text-white' : 'text-white/20'
-                                            }`}
-                                    >
-                                        {tab.label}
-                                    </motion.span>
-                                </div>
-
-                                {/* Animated Inner Shine for Active Tab */}
-                                {isActive && (
-                                    <motion.div
-                                        initial={{ x: '-100%' }}
-                                        animate={{ x: '100%' }}
-                                        transition={{ duration: 1, repeat: Infinity, ease: "linear", repeatDelay: 3 }}
-                                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-[-20deg]"
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
-                </motion.div>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="active-dot"
+                                    className="absolute -bottom-1 w-1 h-1 bg-[#B2FF41] rounded-full"
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                />
+                            )}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

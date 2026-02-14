@@ -1,343 +1,194 @@
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
+    Trash2,
+    LayoutDashboard,
+    Zap,
+    Users,
     Image as ImageIcon,
-    Type,
     Link as LinkIcon,
-    DollarSign,
-    Box,
-    Send,
-    CheckCircle2,
-    Loader2,
-    UploadCloud,
-    Gamepad2,
-    Database,
+    Coins,
     ChevronRight,
-    Star
+    Settings,
+    History,
+    Shield,
+    Upload,
+    Database,
+    Gamepad2,
+    Share2,
+    CheckCircle2,
+    X
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { IKContext, IKUpload } from 'imagekitio-react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
 
 const Admin = () => {
     const { initData } = useTelegram();
-    const [activeTab, setActiveTab] = useState('cpa');
+    const [activeTab, setActiveTab] = useState<'cpa' | 'games' | 'social'>('cpa');
+    const [loading, setLoading] = useState(false);
 
-    // CPA States
-    const [offers, setOffers] = useState<any[]>([]);
-    const [cpaTitle, setCpaTitle] = useState('');
-    const [cpaReward, setCpaReward] = useState('');
-    const [cpaLink, setCpaLink] = useState('');
-    const [cpaImageUrl, setCpaImageUrl] = useState('');
-    const [cpaCategory, setCpaCategory] = useState('Crypto');
-    const [cpaLoading, setCpaLoading] = useState(false);
-    const [cpaSuccess, setCpaSuccess] = useState(false);
+    // CPA State
+    const [cpaNodes, setCpaNodes] = useState<any[]>([]);
+    const [newCpa, setNewCpa] = useState({ title: '', reward: '', category: '', image_url: '', platform: '' });
 
-    // Game States
-    const [games, setGames] = useState<any[]>([]);
-    const [gameName, setGameName] = useState('');
-    const [gameIframe, setGameIframe] = useState('');
-    const [gameImageUrl, setGameImageUrl] = useState('');
-    const [gameMinWager, setGameMinWager] = useState('50');
-    const [gameMaxWager, setGameMaxWager] = useState('5000');
-    const [gameLoading, setGameLoading] = useState(false);
-    const [gameSuccess, setGameSuccess] = useState(false);
+    // Games State
+    const [arcadeModules, setArcadeModules] = useState<any[]>([]);
+    const [newGame, setNewGame] = useState({ title: '', iframe_url: '', image_url: '', category: 'Arcade' });
 
-    const [isUploading, setIsUploading] = useState(false);
+    // Social Tasks State
+    const [socialTasks, setSocialTasks] = useState<any[]>([]);
+    const [newSocial, setNewSocial] = useState({ channel_id: '', platform: 'Telegram', budget: '', reward: '1 EC' });
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
+        setLoading(true);
         try {
-            const [offersRes, gamesRes] = await Promise.all([
-                fetch(`${config.apiBaseUrl}/cpa/offers`, { headers: { 'Authorization': `Bearer ${initData}` } }),
-                fetch(`${config.apiBaseUrl}/games/list`, { headers: { 'Authorization': `Bearer ${initData}` } })
+            const [cpaRes, gamesRes] = await Promise.all([
+                fetch(`${config.apiBaseUrl}/cpa/offers`),
+                fetch(`${config.apiBaseUrl}/games/list`)
             ]);
-            const offersData = await offersRes.json();
-            const gamesData = await gamesRes.json();
-            if (offersData.success) setOffers(offersData.offers);
-            if (gamesData.success) setGames(gamesData.games);
+            const [cpaData, gamesData] = await Promise.all([cpaRes.json(), gamesRes.json()]);
+            if (cpaData.success) setCpaNodes(cpaData.offers);
+            // if (gamesData.success) setArcadeModules(gamesData.games);
         } catch (error) {
             console.error('Admin fetch error');
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (initData) fetchData();
-    }, [initData]);
+        fetchAllData();
+    }, []);
 
-    const ikAuthenticator = async () => {
+    const handleCreateCpa = async () => {
+        setLoading(true);
         try {
-            const response = await fetch(`${config.apiBaseUrl}/cpa/imagekit-auth`);
-            return await response.json();
-        } catch (error) {
-            throw new Error(`Auth failed: ${error}`);
-        }
-    };
-
-    const handleCreateCpa = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setCpaLoading(true);
-        try {
-            const response = await fetch(`${config.apiBaseUrl}/cpa/create`, {
+            const response = await fetch(`${config.apiBaseUrl}/admin/cpa/create`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${initData}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    title: cpaTitle,
-                    link: cpaLink,
-                    reward: Number(cpaReward),
-                    imageUrl: cpaImageUrl,
-                    category: cpaCategory
-                })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${initData}` },
+                body: JSON.stringify(newCpa)
             });
-            const data = await response.json();
-            if (data.success) {
-                setCpaSuccess(true);
-                setTimeout(() => setCpaSuccess(false), 3000);
-                setCpaTitle(''); setCpaLink(''); setCpaReward(''); setCpaImageUrl('');
-                fetchData();
+            if (response.ok) {
+                setNewCpa({ title: '', reward: '', category: '', image_url: '', platform: '' });
+                fetchAllData();
             }
         } catch (error) {
-            alert('Deployment failed');
+            alert('Failed to create node');
         } finally {
-            setCpaLoading(false);
-        }
-    };
-
-    const handleCreateGame = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setGameLoading(true);
-        try {
-            const response = await fetch(`${config.apiBaseUrl}/games/create`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${initData}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: gameName,
-                    iframeUrl: gameIframe,
-                    imageUrl: gameImageUrl,
-                    minWager: Number(gameMinWager),
-                    maxWager: Number(gameMaxWager)
-                })
-            });
-            const data = await response.json();
-            if (data.success) {
-                setGameSuccess(true);
-                setTimeout(() => setGameSuccess(false), 3000);
-                setGameName(''); setGameIframe(''); setGameImageUrl('');
-                fetchData();
-            }
-        } catch (error) {
-            alert('Game integration failed');
-        } finally {
-            setGameLoading(false);
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white px-6 pt-12 pb-32">
-            <div className="mesh-gradient" />
+        <div className="min-h-screen bg-[#050505] text-white px-6 pt-16 pb-36 font-jakarta">
+            <div className="gradient-aura" />
+            <div className="noise-overlay" />
 
-            <header className="mb-10 text-center">
-                <h1 className="text-3xl font-black italic tracking-tighter mb-2">OPERATIONS HUB</h1>
-                <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Network Command & Control</p>
+            <header className="mb-14 relative z-10 flex justify-between items-center">
+                <div>
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#B2FF41] italic">System Admin</span>
+                    </div>
+                    <h1 className="text-3xl font-black italic tracking-tighter uppercase">Operations Hub</h1>
+                </div>
+                <div className="bg-[#121212] p-4 rounded-2xl border border-white/5">
+                    <Database size={20} className="text-[#B2FF41]" />
+                </div>
             </header>
 
-            {/* Neon Tabs */}
-            <div className="flex gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
-                <button
-                    onClick={() => setActiveTab('cpa')}
-                    className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'cpa' ? 'bg-[#00FF88] text-black shadow-[0_0_15px_rgba(0,255,136,0.3)]' : 'text-white/30 hover:text-white/60'
-                        }`}
-                >
-                    CPA Nodes
-                </button>
-                <button
-                    onClick={() => setActiveTab('games')}
-                    className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'games' ? 'bg-[#A855F7] text-black shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'text-white/30 hover:text-white/60'
-                        }`}
-                >
-                    PlayGama
-                </button>
+            <div className="flex gap-2 mb-10 p-1.5 bg-[#121212] rounded-[1.8rem] border border-white/5 relative z-10">
+                <AdminTab active={activeTab === 'cpa'} onClick={() => setActiveTab('cpa')} icon={<Zap size={14} />}>CPA</AdminTab>
+                <AdminTab active={activeTab === 'games'} onClick={() => setActiveTab('games')} icon={<Gamepad2 size={14} />}>Arcade</AdminTab>
+                <AdminTab active={activeTab === 'social'} onClick={() => setActiveTab('social')} icon={<Share2 size={14} />}>Nexus</AdminTab>
             </div>
 
-            <AnimatePresence mode="wait">
-                {activeTab === 'cpa' ? (
-                    <motion.div
-                        key="cpa"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        className="space-y-8"
-                    >
-                        <form onSubmit={handleCreateCpa} className="space-y-6">
-                            <div className="glass-card p-8 space-y-6 border-t-2 border-t-[#00FF88]">
-                                <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-2 flex items-center gap-2">
-                                    <Plus size={16} className="text-[#00FF88]" /> Deploy CPA Node
-                                </h3>
+            <div className="space-y-10 relative z-10">
+                <AnimatePresence mode="wait">
+                    {activeTab === 'cpa' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="cpa">
+                            <AdminForm title="Initialize New CPA Node" onSubmit={handleCreateCpa}>
+                                <AdminInput placeholder="Node Title (e.g. Binance KYC)" value={newCpa.title} onChange={(v) => setNewCpa({ ...newCpa, title: v })} />
+                                <AdminInput placeholder="Price / Reward (in EC)" value={newCpa.reward} onChange={(v) => setNewCpa({ ...newCpa, reward: v })} />
+                                <AdminInput placeholder="Category (e.g. Crypto)" value={newCpa.category} onChange={(v) => setNewCpa({ ...newCpa, category: v })} />
+                                <AdminInput placeholder="ImageKit URL" value={newCpa.image_url} onChange={(v) => setNewCpa({ ...newCpa, image_url: v })} />
+                            </AdminForm>
+                        </motion.div>
+                    )}
 
-                                <div className="space-y-4">
-                                    <div className="relative">
-                                        <input
-                                            placeholder="Offer Title"
-                                            value={cpaTitle}
-                                            onChange={(e) => setCpaTitle(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/40"
-                                            required
-                                        />
-                                        <Type className="absolute right-5 top-1/2 -translate-y-1/2 text-white/10" size={18} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <input
-                                            type="number"
-                                            placeholder="Reward (₦)"
-                                            value={cpaReward}
-                                            onChange={(e) => setCpaReward(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/40"
-                                            required
-                                        />
-                                        <select
-                                            value={cpaCategory}
-                                            onChange={(e) => setCpaCategory(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/40 appearance-none"
-                                        >
-                                            <option value="Crypto">Crypto</option>
-                                            <option value="Fintech">Fintech</option>
-                                            <option value="Apps">Apps</option>
-                                        </select>
-                                    </div>
-                                    <input
-                                        placeholder="Target Link (https://...)"
-                                        value={cpaLink}
-                                        onChange={(e) => setCpaLink(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/40"
-                                        required
-                                    />
-
-                                    <IKContext
-                                        publicKey={import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY}
-                                        urlEndpoint={import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT}
-                                        authenticator={ikAuthenticator}
-                                    >
-                                        <div className="relative group/upload">
-                                            {cpaImageUrl ? (
-                                                <div className="relative h-32 rounded-2xl overflow-hidden group">
-                                                    <img src={cpaImageUrl} className="w-full h-full object-cover opacity-50" />
-                                                    <button onClick={() => setCpaImageUrl('')} className="absolute inset-0 flex items-center justify-center bg-red-500/20 text-red-500 font-black uppercase text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
-                                                </div>
-                                            ) : (
-                                                <div className="relative h-32 bg-white/5 border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center group-hover/upload:border-[#00FF88]/30 transition-all">
-                                                    <IKUpload
-                                                        onSuccess={(res: any) => setCpaImageUrl(res.url)}
-                                                        onUploadStart={() => setIsUploading(true)}
-                                                        className="absolute inset-0 opacity-0 z-10 cursor-pointer"
-                                                    />
-                                                    <UploadCloud className="text-white/20 mb-2" size={24} />
-                                                    <span className="text-[10px] font-black uppercase text-white/30 tracking-widest">Upload Asset</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </IKContext>
+                    {activeTab === 'games' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="games">
+                            <AdminForm title="Deploy Arcade Module (Playgama)" onSubmit={() => { }}>
+                                <AdminInput placeholder="Game Name" value={newGame.title} onChange={(v) => setNewGame({ ...newGame, title: v })} />
+                                <AdminInput placeholder="Iframe Endpoint / URL" value={newGame.iframe_url} onChange={(v) => setNewGame({ ...newGame, iframe_url: v })} />
+                                <AdminInput placeholder="Poster Identity (ImageKit URL)" value={newGame.image_url} onChange={(v) => setNewGame({ ...newGame, image_url: v })} />
+                                <div className="mt-4 bg-[#B2FF41]/5 border border-[#B2FF41]/10 rounded-2xl p-4 flex items-center gap-3">
+                                    <History size={16} className="text-[#B2FF41]" />
+                                    <p className="text-[10px] font-black uppercase text-[#B2FF41]/60 tracking-widest">Payout logic: 2 min dwell = 1 EC</p>
                                 </div>
+                            </AdminForm>
+                        </motion.div>
+                    )}
 
-                                <button type="submit" disabled={cpaLoading || isUploading} className="btn-sleek-primary w-full py-5 !text-black shadow-[0_15px_30px_rgba(0,255,136,0.15)] flex items-center justify-center gap-3">
-                                    {cpaLoading ? <Loader2 className="animate-spin" /> : cpaSuccess ? <CheckCircle2 /> : <Send size={18} />}
-                                    <span className="font-black uppercase tracking-widest">{cpaSuccess ? 'Deployed' : 'Authorize Node'}</span>
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="games"
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        className="space-y-8"
-                    >
-                        <form onSubmit={handleCreateGame} className="space-y-6">
-                            <div className="glass-card p-8 space-y-6 border-t-2 border-t-[#A855F7]">
-                                <h3 className="text-sm font-black uppercase tracking-widest text-white/50 mb-2 flex items-center gap-2">
-                                    <Gamepad2 size={16} className="text-[#A855F7]" /> Integrate PlayGama
-                                </h3>
-
-                                <div className="space-y-4">
-                                    <input
-                                        placeholder="Game Title"
-                                        value={gameName}
-                                        onChange={(e) => setGameName(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#A855F7]/40"
-                                        required
-                                    />
-                                    <input
-                                        placeholder="Iframe URL"
-                                        value={gameIframe}
-                                        onChange={(e) => setGameIframe(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 font-bold text-sm focus:outline-none focus:border-[#A855F7]/40"
-                                        required
-                                    />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-1.5">
-                                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-2">Min Wager</span>
-                                            <input
-                                                type="number"
-                                                value={gameMinWager}
-                                                onChange={(e) => setGameMinWager(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-6 font-bold text-sm focus:outline-none focus:border-[#A855F7]/40"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest ml-2">Max Wager</span>
-                                            <input
-                                                type="number"
-                                                value={gameMaxWager}
-                                                onChange={(e) => setGameMaxWager(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-6 font-bold text-sm focus:outline-none focus:border-[#A855F7]/40"
-                                            />
-                                        </div>
+                    {activeTab === 'social' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="social">
+                            <AdminForm title="Social Nexus Slot (Audience Sale)" onSubmit={() => { }}>
+                                <AdminInput placeholder="Channel ID / Link" value={newSocial.channel_id} onChange={(v) => setNewSocial({ ...newSocial, channel_id: v })} />
+                                <AdminInput placeholder="Advertiser Budget (NGN)" value={newSocial.budget} onChange={(v) => setNewSocial({ ...newSocial, budget: v })} />
+                                <div className="p-4 bg-[#121212] rounded-2xl border border-white/5 space-y-4">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-white/20">Market Rate</span>
+                                        <span className="text-[#B2FF41]">₦50 / Follower</span>
                                     </div>
-
-                                    <IKContext
-                                        publicKey={import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY}
-                                        urlEndpoint={import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT}
-                                        authenticator={ikAuthenticator}
-                                    >
-                                        <div className="relative group/upload">
-                                            {gameImageUrl ? (
-                                                <div className="relative h-32 rounded-2xl overflow-hidden group">
-                                                    <img src={gameImageUrl} className="w-full h-full object-cover opacity-50" />
-                                                    <button onClick={() => setGameImageUrl('')} className="absolute inset-0 flex items-center justify-center bg-red-500/20 text-red-500 font-black uppercase text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">Remove</button>
-                                                </div>
-                                            ) : (
-                                                <div className="relative h-32 bg-white/5 border-2 border-dashed border-white/5 rounded-2xl flex flex-col items-center justify-center group-hover/upload:border-[#A855F7]/30 transition-all">
-                                                    <IKUpload
-                                                        onSuccess={(res: any) => setGameImageUrl(res.url)}
-                                                        onUploadStart={() => setIsUploading(true)}
-                                                        className="absolute inset-0 opacity-0 z-10 cursor-pointer"
-                                                    />
-                                                    <Gamepad2 className="text-white/20 mb-2" size={24} />
-                                                    <span className="text-[10px] font-black uppercase text-white/30 tracking-widest">Upload Game Icon</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </IKContext>
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                        <span className="text-white/20">User Yield</span>
+                                        <span className="text-[#B2FF41]">1 EC / Node</span>
+                                    </div>
                                 </div>
-
-                                <button type="submit" disabled={gameLoading || isUploading} className="btn-sleek-primary w-full py-5 !bg-[#A855F7] !text-black shadow-[0_15px_30px_rgba(168,85,247,0.15)] flex items-center justify-center gap-3">
-                                    {gameLoading ? <Loader2 className="animate-spin" /> : gameSuccess ? <CheckCircle2 /> : <Send size={18} />}
-                                    <span className="font-black uppercase tracking-widest">{gameSuccess ? 'Integrated' : 'Initialize Game'}</span>
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            </AdminForm>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 };
+
+const AdminTab = ({ active, onClick, children, icon }: any) => (
+    <button
+        onClick={onClick}
+        className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${active ? 'bg-[#B2FF41] text-black shadow-lg shadow-[#B2FF41]/20 scale-105' : 'text-white/20 hover:text-white/40'
+            }`}
+    >
+        {icon}
+        {children}
+    </button>
+);
+
+const AdminForm = ({ title, children, onSubmit }: any) => (
+    <div className="premium-card p-10 bg-[#0A0A0A] space-y-8">
+        <h3 className="text-sm font-black uppercase tracking-[0.2em] italic text-[#B2FF41]">{title}</h3>
+        <div className="space-y-5">
+            {children}
+        </div>
+        <button
+            onClick={onSubmit}
+            className="accent-btn w-full h-16 uppercase tracking-[0.2em] italic text-xs"
+        >
+            Deploy Protocol <Plus size={18} />
+        </button>
+    </div>
+);
+
+const AdminInput = ({ placeholder, value, onChange }: any) => (
+    <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-16 bg-[#050505] border border-white/5 rounded-2xl px-6 font-bold text-xs uppercase tracking-widest text-white/60 focus:outline-none focus:border-[#B2FF41]/40 transition-all placeholder:text-white/5"
+    />
+);
 
 export default Admin;

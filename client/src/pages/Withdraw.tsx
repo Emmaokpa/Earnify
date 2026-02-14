@@ -1,24 +1,31 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+    ChevronLeft,
+    MoreHorizontal,
     Wallet,
+    Info,
     ArrowRight,
     CheckCircle2,
-    AlertCircle,
+    X,
     Building2,
+    CreditCard,
+    ArrowUpRight,
     ShieldCheck,
     History,
-    Info,
-    Zap,
-    Users
+    AlertCircle,
+    Banknote,
+    Lock,
+    Coins,
+    DollarSign
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
+import { formatCurrency } from './Earn';
 
 const Withdraw = () => {
     const { initData } = useTelegram();
     const [balance, setBalance] = useState(0);
-    const [transactions, setTransactions] = useState<any[]>([]);
     const [amount, setAmount] = useState('');
     const [bank, setBank] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
@@ -34,7 +41,6 @@ const Withdraw = () => {
                 const data = await response.json();
                 if (data.success) {
                     setBalance(data.dashboard.balance);
-                    setTransactions(data.dashboard.recentTransactions || []);
                 }
             } catch (error) {
                 console.error('Failed to fetch balance');
@@ -43,21 +49,16 @@ const Withdraw = () => {
         if (initData) fetchBalance();
     }, [initData]);
 
-    const getTxIcon = (category: string, type: string) => {
-        if (type === 'debit') return <ArrowRight size={14} className="-rotate-45" />;
-        if (category === 'ad_reward') return <Zap size={14} />;
-        if (category === 'referral_bonus') return <Users size={14} />;
-        return <Wallet size={14} />;
-    };
-
-    const handleWithdraw = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!amount || Number(amount) < 500) {
-            alert('Minimum withdrawal is ₦500');
+    const handleWithdraw = async () => {
+        const amountNum = Number(amount);
+        // 50 EC = 5000 NGN (if 1 EC = 100 NGN? Wait, user said 1 EC = 10 NGN)
+        // 50 EC = 500 NGN.
+        if (!amount || amountNum < 50) {
+            alert('Minimum withdrawal is 50 EC (₦500)');
             return;
         }
-        if (Number(amount) > balance) {
-            alert('Insufficient balance');
+        if (amountNum > balance) {
+            alert('Insufficient unit liquidity');
             return;
         }
 
@@ -70,7 +71,7 @@ const Withdraw = () => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    amount: Number(amount),
+                    amount: amountNum,
                     bank,
                     accountNumber
                 })
@@ -78,43 +79,40 @@ const Withdraw = () => {
             const data = await response.json();
             if (data.success) {
                 setSuccess(true);
-                // Refresh balance
-                const res = await fetch(`${config.apiBaseUrl}/user/dashboard`, {
-                    headers: { 'Authorization': `Bearer ${initData}` }
-                });
-                const d = await res.json();
-                if (d.success) setBalance(d.dashboard.balance);
             } else {
-                alert(data.message || 'Withdrawal failed');
+                alert(data.message || 'Transmission failed');
             }
         } catch (error) {
-            console.error('Withdrawal error:', error);
-            alert('Server connection error');
+            alert('Gateway synchronization error');
         } finally {
             setLoading(false);
         }
     };
 
+    const currency = formatCurrency(balance);
+    const inputCurrency = formatCurrency(Number(amount) || 0);
+
     if (success) {
         return (
-            <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6">
+            <div className="min-h-screen bg-[#050505] flex items-center justify-center p-8 overflow-hidden">
+                <div className="gradient-aura" />
                 <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="glass-card p-10 text-center max-w-sm w-full"
+                    initial={{ scale: 0.9, y: 50, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    className="premium-card p-12 text-center w-full max-w-sm bg-gradient-to-br from-[#121212] to-black border-white/5"
                 >
-                    <div className="w-20 h-20 rounded-full bg-[#00FF88]/10 border border-[#00FF88]/20 flex items-center justify-center mx-auto mb-8 shadow-[0_0_40px_rgba(0,255,136,0.1)]">
-                        <CheckCircle2 size={44} className="text-[#00FF88]" />
+                    <div className="w-24 h-24 rounded-full bg-[#B2FF41]/10 flex items-center justify-center mx-auto mb-10 shadow-[0_0_50px_rgba(178,255,65,0.2)]">
+                        <CheckCircle2 size={48} className="text-[#B2FF41] animate-bounce" />
                     </div>
-                    <h2 className="text-2xl font-black italic tracking-tighter mb-4 uppercase">Request Sent</h2>
-                    <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest leading-loose mb-10">
-                        Your withdrawal of <span className="text-white">₦{Number(amount).toLocaleString()}</span> has been queued for verification. Settlement usually takes 1-6 hours.
+                    <h2 className="text-3xl font-black italic mb-4 uppercase tracking-tighter">SUCCESSFUL</h2>
+                    <p className="text-white/40 text-[12px] font-bold mb-12 leading-relaxed uppercase tracking-widest italic">
+                        Node payout protocol initiated. <span className="text-[#B2FF41]">{Number(amount)} EC</span> ({inputCurrency.ngn}) is being routed to your local banking node.
                     </p>
                     <button
                         onClick={() => { setSuccess(false); setAmount(''); }}
-                        className="btn-sleek-primary w-full py-4 uppercase font-black tracking-widest"
+                        className="accent-btn w-full text-lg shadow-[0_15px_40px_rgba(178,255,65,0.4)] uppercase italic tracking-widest"
                     >
-                        Acknowledge
+                        Optimize Node
                     </button>
                 </motion.div>
             </div>
@@ -122,165 +120,149 @@ const Withdraw = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#050505] text-white px-6 pt-12 pb-32">
-            <div className="mesh-gradient" />
+        <div className="min-h-screen bg-[#050505] text-white px-6 pt-16 pb-36 font-jakarta">
+            <div className="gradient-aura" />
+            <div className="noise-overlay" />
 
-            <motion.header
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="mb-10 flex justify-between items-end"
-            >
-                <div>
-                    <h1 className="text-4xl font-black italic tracking-tighter mb-2">WALLET</h1>
-                    <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Secure Liquidity Management</p>
+            <header className="flex justify-between items-center mb-14 relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className="w-6 h-[2.5px] bg-[#B2FF41]" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#B2FF41] italic">Treasury Portal</span>
                 </div>
-                <button className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                    <History size={18} className="text-white/40" />
-                </button>
-            </motion.header>
-
-            {/* Balance Card */}
-            <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="glass-card-bright p-8 mb-10 relative overflow-hidden group"
-            >
-                <Wallet size={120} className="absolute -right-10 -bottom-10 text-white/5 rotate-12 group-hover:rotate-6 transition-transform duration-700" />
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Available for payout</p>
-                <h2 className="text-5xl font-black italic racking-tighter mb-6">₦{balance.toLocaleString()}</h2>
-
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full w-fit">
-                    <ShieldCheck size={12} className="text-[#00FF88]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/60">Verified Liquidity</span>
+                <div className="bg-[#121212] px-4 py-2 rounded-2xl border border-white/5 flex items-center gap-2">
+                    <ShieldCheck size={14} className="text-[#B2FF41]" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/40 italic">256-Bit SSL</span>
                 </div>
-            </motion.div>
+            </header>
 
-            {/* Withdrawal Form */}
-            <motion.form
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                onSubmit={handleWithdraw}
-                className="space-y-6"
-            >
-                <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-[11px] font-black tracking-[0.3em] uppercase text-white/30">Payout Terminal</h2>
-                    <div className="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent" />
-                </div>
-
-                <div className="space-y-4">
-                    <div className="relative group">
-                        <input
-                            type="text"
-                            placeholder="Select Bank"
-                            value={bank}
-                            onChange={(e) => setBank(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/50 focus:bg-white/[0.08] transition-all"
-                        />
-                        <Building2 size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#00FF88] transition-colors" />
+            <div className="space-y-8 relative z-10">
+                {/* Visual Balance Cluster */}
+                <div className="premium-card p-10 bg-gradient-to-br from-[#121212] to-black overflow-hidden relative">
+                    <div className="shimmer" />
+                    <div className="absolute -top-1 -right-1 w-24 h-24 bg-[#B2FF41]/5 blur-3xl" />
+                    <div className="flex justify-between items-start mb-6">
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20 mb-2">Available Liquidity</p>
+                            <h1 className="text-6xl font-black tracking-tighter italic">{currency.ec.toLocaleString()} <span className="text-2xl text-[#B2FF41]">EC</span></h1>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 pt-1">
+                            <span className="text-[11px] font-black text-[#B2FF41] uppercase tracking-widest">{currency.ngn}</span>
+                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">{currency.usd}</span>
+                        </div>
                     </div>
-
-                    <div className="relative group">
-                        <input
-                            type="number"
-                            placeholder="Account Number"
-                            value={accountNumber}
-                            onChange={(e) => setAccountNumber(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/50 focus:bg-white/[0.08] transition-all"
+                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: '100%' }}
+                            transition={{ duration: 1.5, ease: "easeOut" }}
+                            className="h-full bg-gradient-to-r from-[#B2FF41] to-transparent"
                         />
                     </div>
+                </div>
 
-                    <div className="relative group">
-                        <input
-                            type="number"
-                            placeholder="Amount (min ₦500)"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-sm focus:outline-none focus:border-[#00FF88]/50 focus:bg-white/[0.08] transition-all"
-                        />
-                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setAmount(balance.toString())}
-                                className="text-[9px] font-black uppercase tracking-widest bg-[#00FF88]/10 text-[#00FF88] px-2 py-1 rounded-md border border-[#00FF88]/20"
-                            >
-                                Max
-                            </button>
+                {/* Transfer Configuration Form */}
+                <div className="premium-card p-8 bg-[#0A0A0A] border-white/[0.05] space-y-8">
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] animate-pulse shadow-[0_0_10px_#B2FF41]" />
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 italic">Payout Config</h3>
+                    </div>
+
+                    <div className="space-y-6">
+                        {/* Amount Input */}
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center px-5">
+                                <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] italic">Transfer Units (EC)</label>
+                                {amount && (
+                                    <span className="text-[9px] font-black text-[#B2FF41] uppercase tracking-widest italic animate-pulse">
+                                        Value: {inputCurrency.ngn}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative group">
+                                <Coins className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                <input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    placeholder="Min 50"
+                                    className="withdraw-input pl-16 text-2xl h-24"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Bank Selection */}
+                        <div className="space-y-3">
+                            <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Relay Bank</label>
+                            <div className="relative">
+                                <Building2 className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                <input
+                                    value={bank}
+                                    onChange={(e) => setBank(e.target.value)}
+                                    placeholder="Opay / Kuda / Moniepoint"
+                                    className="withdraw-input pl-16"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Account Number */}
+                        <div className="space-y-3">
+                            <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Node Serial Number (A/C)</label>
+                            <div className="relative">
+                                <CreditCard className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                <input
+                                    value={accountNumber}
+                                    onChange={(e) => setAccountNumber(e.target.value)}
+                                    placeholder="0123456789"
+                                    className="withdraw-input pl-16 font-mono tracking-[0.2em]"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-orange-500/5 border border-orange-500/10 rounded-2xl p-4 flex gap-3">
-                    <AlertCircle size={20} className="text-orange-400 shrink-0" />
-                    <p className="text-[10px] text-orange-400 font-bold uppercase tracking-wider leading-relaxed">
-                        Ensure account details match your registered identity to avoid payout delays.
-                    </p>
-                </div>
-
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    disabled={loading}
-                    type="submit"
-                    className="btn-sleek-primary w-full py-6 font-black uppercase tracking-[0.2em] flex items-center justify-center gap-4 text-black shadow-[0_20px_40px_-15px_rgba(0,255,136,0.3)] disabled:opacity-50 disabled:grayscale transition-all"
+                {/* Submit Action */}
+                <button
+                    onClick={handleWithdraw}
+                    disabled={loading || !amount || !bank || !accountNumber}
+                    className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase mt-4 transition-all ${(!amount || !bank || !accountNumber) ? 'opacity-30 grayscale pointer-events-none' : ''
+                        }`}
                 >
                     {loading ? (
-                        <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                            <History size={24} />
+                        </motion.div>
                     ) : (
-                        <>
-                            Initialize Payout
-                            <ArrowRight size={20} />
-                        </>
-                    )}
-                </motion.button>
-            </motion.form>
-
-            {/* Transaction History Section */}
-            <motion.section
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="mt-12"
-            >
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-[11px] font-black tracking-[0.3em] uppercase text-white/30">History</h2>
-                        <div className="h-[1px] w-12 bg-white/10" />
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    {transactions.length === 0 ? (
-                        <div className="text-center py-10 opacity-20 text-[10px] font-black uppercase tracking-[0.2em]">
-                            No Transactions Found
+                        <div className="flex items-center gap-4">
+                            <span>Relay Funds</span>
+                            <ArrowUpRight size={24} strokeWidth={3} />
                         </div>
-                    ) : (
-                        transactions.map((tx: any) => (
-                            <div key={tx.id} className="glass-card !rounded-2xl p-4 flex items-center justify-between group hover:bg-white/[0.05] transition-colors">
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === 'debit' ? 'bg-red-500/10 text-red-400' : 'bg-[#00FF88]/10 text-[#00FF88]'
-                                        }`}>
-                                        {getTxIcon(tx.category, tx.type)}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-[13px] tracking-tight capitalize">{tx.category?.replace('_', ' ') || tx.type}</h4>
-                                        <p className="text-[10px] text-white/30 font-medium">
-                                            {tx.createdAt?._seconds ? new Date(tx.createdAt._seconds * 1000).toLocaleDateString() : new Date(tx.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className={`font-black text-sm ${tx.type === 'debit' ? 'text-white' : 'text-[#00FF88]'}`}>
-                                        {tx.type === 'credit' ? '+' : '-'}₦{Math.abs(tx.amount).toLocaleString()}
-                                    </p>
-                                    <p className={`text-[9px] font-black uppercase tracking-widest ${tx.status === 'pending' ? 'text-orange-400' : 'text-white/20'
-                                        }`}>
-                                        {tx.status}
-                                    </p>
-                                </div>
-                            </div>
-                        ))
                     )}
-                </div>
-            </motion.section>
+                </button>
+            </div>
+
+            <style>{`
+                .withdraw-input {
+                    width: 100%;
+                    background: #050505;
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 2.2rem;
+                    padding: 1.5rem 1.75rem;
+                    font-weight: 900;
+                    font-style: italic;
+                    color: white;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                }
+                .withdraw-input:focus {
+                    outline: none;
+                    border-color: #B2FF41;
+                    background: #080808;
+                    box-shadow: 0 0 30px rgba(178, 255, 65, 0.1);
+                }
+                .withdraw-input::placeholder {
+                    color: rgba(255,255,255,0.05);
+                    font-weight: 800;
+                }
+            `}</style>
         </div>
     );
 };

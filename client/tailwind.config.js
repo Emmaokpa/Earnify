@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'sans': ['Outfit', 'sans-serif'],
+        'jakarta': ['Plus Jakarta Sans', 'sans-serif'],
+        'sans': ['Plus Jakarta Sans', 'sans-serif'],
       },
       colors: {
         'primary-neon': '#00FF88',

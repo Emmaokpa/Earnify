@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "set-admin": "ts-node scripts/setAdmin.ts",
+    "bot-token": "ts-node scripts/generate_token.ts"
   },
   "keywords": [],
   "author": "",
@@ -18,7 +20,8 @@
     "express": "^5.2.1",
     "firebase-admin": "^13.6.1",
     "imagekit": "^6.0.0",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "telegraf": "^4.16.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

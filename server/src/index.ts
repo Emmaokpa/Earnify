@@ -18,6 +18,9 @@ app.get('/', (req: Request, res: Response) => {
     res.json({ message: 'Welcome to Earnify API' });
 });
 
+import { launchBot } from './bot';
+
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    launchBot();
 });

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
 // Extend Express Request type to include user data
 declare global {
@@ -22,51 +22,105 @@ export const verifyTelegramWebAppData = (req: Request, res: Response, next: Next
     }
 
     if (!initData) {
-        return res.status(401).json({ error: 'Auth data missing' });
+        return res.status(401).json({
+            success: false,
+            error: 'Authentication required',
+            message: 'Telegram initData missing from request headers'
+        });
     }
 
-    // If in dev mode and using mock data, bypass
-    // if (process.env.NODE_ENV === 'development' && initData === 'mock_token') {
-    //     req.user = { id: 12345, first_name: 'Dev User' };
-    //     return next();
-    // }
-
-    if (!TELEGRAM_BOT_TOKEN) {
-        console.error('TELEGRAM_BOT_TOKEN is not defined');
-        return res.status(500).json({ error: 'Server configuration error' });
+    // Development bypass (optional - remove in production)
+    if (process.env.NODE_ENV === 'development' && initData === 'dev_bypass_token') {
+        req.user = { id: 999999, first_name: 'Dev', username: 'developer' };
+        return next();
     }
 
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-
-    if (!hash) {
-        return res.status(401).json({ error: 'Hash missing' });
+    if (!BOT_TOKEN) {
+        console.error('❌ BOT_TOKEN is not configured in environment variables');
+        return res.status(500).json({
+            success: false,
+            error: 'Server misconfiguration',
+            message: 'Bot token not found. Please configure BOT_TOKEN in .env'
+        });
     }
 
-    urlParams.delete('hash');
+    try {
+        const urlParams = new URLSearchParams(initData);
+        const hash = urlParams.get('hash');
+        const authDate = urlParams.get('auth_date');
 
-    const dataCheckString = Array.from(urlParams.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => `${key}=${value}`)
-        .join('\n');
-
-    const secretKey = crypto
-        .createHmac('sha256', 'WebAppData')
-        .update(TELEGRAM_BOT_TOKEN)
-        .digest();
-
-    const calculatedHash = crypto
-        .createHmac('sha256', secretKey)
-        .update(dataCheckString)
-        .digest('hex');
-
-    if (calculatedHash === hash) {
-        const userString = urlParams.get('user');
-        if (userString) {
-            req.user = JSON.parse(userString);
+        if (!hash) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid authentication data',
+                message: 'Hash signature missing'
+            });
         }
+
+        // Validate auth_date to prevent replay attacks (24 hour window)
+        if (authDate) {
+            const authTimestamp = parseInt(authDate);
+            const currentTimestamp = Math.floor(Date.now() / 1000);
+            const timeDiff = currentTimestamp - authTimestamp;
+
+            if (timeDiff > 86400) { // 24 hours
+                return res.status(401).json({
+                    success: false,
+                    error: 'Authentication expired',
+                    message: 'Session expired. Please restart the app.'
+                });
+            }
+        }
+
+        urlParams.delete('hash');
+
+        // Build data-check-string according to Telegram's algorithm
+        const dataCheckString = Array.from(urlParams.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n');
+
+        // Generate secret key from bot token
+        const secretKey = crypto
+            .createHmac('sha256', 'WebAppData')
+            .update(BOT_TOKEN)
+            .digest();
+
+        // Calculate hash
+        const calculatedHash = crypto
+            .createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex');
+
+        if (calculatedHash !== hash) {
+            console.warn('⚠️ Invalid Telegram signature detected');
+            return res.status(403).json({
+                success: false,
+                error: 'Authentication failed',
+                message: 'Invalid data signature. Possible tampering detected.'
+            });
+        }
+
+        // Extract and parse user data
+        const userString = urlParams.get('user');
+        if (!userString) {
+            return res.status(401).json({
+                success: false,
+                error: 'User data missing',
+                message: 'No user information in authentication payload'
+            });
+        }
+
+        req.user = JSON.parse(userString);
+        console.log(`✅ Authenticated user: ${req.user.id} (${req.user.first_name})`);
         next();
-    } else {
-        return res.status(403).json({ error: 'Invalid data signature' });
+
+    } catch (error) {
+        console.error('❌ Authentication error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Authentication processing failed',
+            message: 'Unable to verify Telegram credentials'
+        });
     }
 };

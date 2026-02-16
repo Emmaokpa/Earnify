@@ -3,39 +3,39 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-let app: admin.app.App | null = null;
-let db: admin.firestore.Firestore | null = null;
+const serviceAccountData = process.env.FIREBASE_SERVICE_ACCOUNT;
 
-export const initializeFirebase = () => {
-    if (!process.env.FIREBASE_PROJECT_ID) {
-        console.warn('Firebase configuration missing. Skipping initialization.');
-        return;
-    }
+if (!serviceAccountData) {
+    console.error('FIREBASE_SERVICE_ACCOUNT environment variable is missing.');
+}
 
+const initializeFirebase = () => {
     try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-
         if (!admin.apps.length) {
-            app = admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
+            let serviceAccount;
+            try {
+                // Handle potential escaped newlines from environment variables
+                const cleanedServiceAccount = serviceAccountData?.replace(/\\n/g, '\n');
+                serviceAccount = JSON.parse(cleanedServiceAccount || '{}');
+            } catch (e) {
+                console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT JSON:', e);
+                throw new Error('Invalid Firebase configuration format');
+            }
+
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount)
             });
-            console.log('Firebase initialized successfully.');
-        } else {
-            app = admin.app();
+            console.log('✅ Firebase Protocol Initialized');
         }
-
-        db = admin.firestore();
     } catch (error) {
-        console.error('Error initializing Firebase:', error);
+        console.error('❌ Firebase Initialization Error:', error);
+        // Don't crash immediately, allow other services to potentially start
     }
 };
 
-export const getFirestore = () => {
-    if (!db) {
-        initializeFirebase();
-    }
-    return db!;
-};
-
-// Initialize on start
 initializeFirebase();
+
+export const db = admin.firestore();
+export const auth = admin.auth();
+export const getFirestore = () => db;
+export default admin;

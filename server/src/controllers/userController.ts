@@ -13,15 +13,25 @@ export const createOrGetUser = async (req: Request, res: Response) => {
         const user = req.user;
 
         if (!user || !user.id) {
-            return res.status(400).json({ error: 'Invalid user data' });
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid user data',
+                message: 'User information missing from Telegram authentication'
+            });
         }
 
         const db = getFirestore();
-        const userRef = db.collection('users').doc(user.id.toString());
+        const userId = user.id.toString();
+        const userRef = db.collection('users').doc(userId);
         const userDoc = await userRef.get();
 
         if (userDoc.exists) {
-            // User exists, return user data
+            // Existing user - update last login
+            await userRef.update({
+                lastLogin: new Date(),
+                updatedAt: new Date()
+            });
+
             const userData = userDoc.data();
             return res.json({
                 success: true,
@@ -32,16 +42,18 @@ export const createOrGetUser = async (req: Request, res: Response) => {
 
         // New user - create account
         const referralCode = generateReferralCode();
-        const referredBy = req.body.referralCode || null;
+        const referrerId = req.body.referrerId || null; // Telegram ID of referrer
 
         const newUser = {
-            telegramId: user.id.toString(),
+            telegramId: userId,
             username: user.username || '',
             firstName: user.first_name || '',
             lastName: user.last_name || '',
+            isPremium: user.is_premium || false,
+            languageCode: user.language_code || 'en',
 
             referralCode,
-            referredBy,
+            referredBy: referrerId, // Store referrer's Telegram ID
 
             balance: 0,
             pendingBalance: 0,
@@ -63,82 +75,107 @@ export const createOrGetUser = async (req: Request, res: Response) => {
 
         await userRef.set(newUser);
 
-        // If user was referred, update referrer's stats
-        if (referredBy) {
-            await updateReferrerStats(referredBy, user.id.toString());
+        // If user was referred, update referrer's stats and credit bonus
+        let referralBonus = 0;
+        if (referrerId) {
+            await updateReferrerStats(referrerId, userId);
+            referralBonus = 20; // Referrer gets 20 EC
+            console.log(`✅ New user ${userId} referred by ${referrerId}`);
         }
 
         return res.json({
             success: true,
             user: newUser,
-            isNewUser: true
+            isNewUser: true,
+            referralBonus: referralBonus
         });
 
     } catch (error) {
-        console.error('Error in createOrGetUser:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Error in createOrGetUser:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: 'Failed to create or retrieve user account'
+        });
     }
 };
 
 // Update referrer statistics
-const updateReferrerStats = async (referralCode: string, newUserId: string) => {
+const updateReferrerStats = async (referrerId: string, newUserId: string) => {
     try {
         const db = getFirestore();
+        const admin = await import('firebase-admin');
 
-        // Find referrer by referral code
-        const usersSnapshot = await db.collection('users')
-            .where('referralCode', '==', referralCode)
-            .limit(1)
-            .get();
+        // Direct lookup by Telegram ID
+        const referrerRef = db.collection('users').doc(referrerId);
+        const referrerDoc = await referrerRef.get();
 
-        if (usersSnapshot.empty) {
-            console.warn(`Referral code ${referralCode} not found`);
+        if (!referrerDoc.exists) {
+            console.warn(`⚠️ Referrer ${referrerId} not found`);
             return;
         }
 
-        const referrerDoc = usersSnapshot.docs[0];
-        const referrerId = referrerDoc.id;
+        const bonusAmount = 20; // 20 EC per referral
 
-        // Update or create referrals document
-        const referralRef = db.collection('referrals').doc(referrerId);
-        const referralDoc = await referralRef.get();
+        // Update Referrer Balance and Referral Stats in a transaction
+        await db.runTransaction(async (transaction) => {
+            const referralRef = db.collection('referrals').doc(referrerId);
+            const refDoc = await transaction.get(referralRef);
 
-        if (referralDoc.exists) {
-            // Update existing
-            await referralRef.update({
-                totalReferrals: (referralDoc.data()?.totalReferrals || 0) + 1,
-                referrals: [
-                    ...(referralDoc.data()?.referrals || []),
-                    {
+            // 1. Credit Referrer Balance
+            transaction.update(referrerRef, {
+                balance: admin.firestore.FieldValue.increment(bonusAmount),
+                totalEarned: admin.firestore.FieldValue.increment(bonusAmount),
+                referralEarnings: admin.firestore.FieldValue.increment(bonusAmount),
+                updatedAt: new Date()
+            });
+
+            // 2. Log Transaction
+            const transRef = db.collection('transactions').doc();
+            transaction.set(transRef, {
+                userId: referrerId,
+                amount: bonusAmount,
+                type: 'credit',
+                category: 'referral_bonus',
+                description: `Referral bonus for user ${newUserId}`,
+                status: 'completed',
+                createdAt: new Date()
+            });
+
+            // 3. Update Referral Tracking
+            if (refDoc.exists) {
+                transaction.update(referralRef, {
+                    totalReferrals: admin.firestore.FieldValue.increment(1),
+                    referrals: admin.firestore.FieldValue.arrayUnion({
                         userId: newUserId,
                         joinedAt: new Date(),
-                        isActive: false,
-                        totalEarnings: 0,
-                        commissionEarned: 0
-                    }
-                ],
-                updatedAt: new Date()
-            });
-        } else {
-            // Create new
-            await referralRef.set({
-                userId: referrerId,
-                totalReferrals: 1,
-                activeReferrals: 0,
-                totalEarned: 0,
-                referrals: [{
-                    userId: newUserId,
-                    joinedAt: new Date(),
-                    isActive: false,
-                    totalEarnings: 0,
-                    commissionEarned: 0
-                }],
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-        }
+                        isActive: true, // Initial state
+                        bonusEarned: bonusAmount
+                    }),
+                    totalEarned: admin.firestore.FieldValue.increment(bonusAmount),
+                    updatedAt: new Date()
+                });
+            } else {
+                transaction.set(referralRef, {
+                    userId: referrerId,
+                    totalReferrals: 1,
+                    activeReferrals: 1,
+                    totalEarned: bonusAmount,
+                    referrals: [{
+                        userId: newUserId,
+                        joinedAt: new Date(),
+                        isActive: true,
+                        bonusEarned: bonusAmount
+                    }],
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                });
+            }
+        });
+
+        console.log(`✅ Credited ${bonusAmount} EC to referrer ${referrerId}`);
     } catch (error) {
-        console.error('Error updating referrer stats:', error);
+        console.error('❌ Error updating referrer stats:', error);
     }
 };
 
@@ -197,7 +234,11 @@ export const getUserDashboard = async (req: Request, res: Response) => {
                     activeReferrals: referralData?.activeReferrals || 0,
                     totalEarned: referralData?.totalEarned || 0
                 },
-                recentTransactions: transactions
+                recentTransactions: transactions,
+                dailyStatus: {
+                    canClaim: (userData?.lastDailyClaim ? (new Date().getTime() - userData.lastDailyClaim.toDate().getTime()) / (1000 * 60 * 60) >= 24 : true),
+                    nextClaimIn: (userData?.lastDailyClaim ? Math.max(0, Math.ceil(24 - (new Date().getTime() - userData.lastDailyClaim.toDate().getTime()) / (1000 * 60 * 60))) : 0)
+                }
             }
         });
 
@@ -368,18 +409,27 @@ export const requestWithdrawal = async (req: Request, res: Response) => {
         }
 
         const withdrawalAmount = Number(amount);
-        if (withdrawalAmount < 500) {
-            return res.status(400).json({ success: false, message: 'Minimum withdrawal is ₦500' });
+        if (withdrawalAmount < 50) {
+            return res.status(400).json({ success: false, message: 'Minimum withdrawal is 50 EC (₦500)' });
         }
 
         const db = getFirestore();
         const userRef = db.collection('users').doc(user.id.toString());
+        const referralRef = db.collection('referrals').doc(user.id.toString());
 
         await db.runTransaction(async (transaction) => {
             const userDoc = await transaction.get(userRef);
+            const refDoc = await transaction.get(referralRef);
+
             if (!userDoc.exists) throw new Error('User not found');
 
             const userData = userDoc.data();
+            const refData = refDoc.exists ? refDoc.data() : { totalReferrals: 0 };
+
+            if ((refData?.totalReferrals || 0) < 3) {
+                throw new Error('Withdrawal Locked: 3 successful referrals required.');
+            }
+
             const currentBalance = userData?.balance || 0;
 
             if (currentBalance < withdrawalAmount) {

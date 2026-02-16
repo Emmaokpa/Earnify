@@ -66,6 +66,10 @@ export const createGame = async (req: Request, res: Response) => {
 export const logGamePlay = async (req: Request, res: Response) => {
     try {
         const { gameId } = req.params;
+
+        if (typeof gameId !== 'string') {
+            return res.status(400).json({ error: 'Invalid game ID' });
+        }
         const { wager, result } = req.body; // result: 'win' | 'loss'
         const user = req.user;
 

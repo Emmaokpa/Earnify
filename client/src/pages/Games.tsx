@@ -1,16 +1,10 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    Gamepad2,
     Trophy,
-    Star,
-    ChevronRight,
     Play,
     Timer,
-    Zap,
     Coins,
     X,
-    Maximize2,
-    AlertCircle,
     CheckCircle2
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
@@ -21,7 +15,7 @@ const Games = () => {
     const { initData } = useTelegram();
     const [games, setGames] = useState<any[]>([]);
     const [selectedGame, setSelectedGame] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+
     const [playTime, setPlayTime] = useState(0);
     const [rewardStatus, setRewardStatus] = useState<'none' | 'tracking' | 'completed' | 'failed'>('none');
     const timerRef = useRef<any>(null);
@@ -33,7 +27,7 @@ const Games = () => {
             { id: 2, title: 'Crypto Ninja', image_url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800', iframe_url: 'https://play.gama.io/games/ninja', category: 'Precision' },
             { id: 3, title: 'Vault Breaker', image_url: 'https://images.unsplash.com/photo-1621259182978-f09e5e2ca845?w=800', iframe_url: 'https://play.gama.io/games/vault', category: 'Tactical' },
         ]);
-        setLoading(false);
+
     }, []);
 
     const startGame = (game: any) => {

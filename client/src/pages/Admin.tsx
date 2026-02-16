@@ -1,24 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
-    Trash2,
-    LayoutDashboard,
     Zap,
-    Users,
-    Image as ImageIcon,
-    Link as LinkIcon,
-    Coins,
-    ChevronRight,
-    Settings,
     History,
-    Shield,
-    Upload,
     Database,
     Gamepad2,
-    Share2,
-    CheckCircle2,
-    X
+    Share2
 } from 'lucide-react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
@@ -26,57 +14,39 @@ import config from '../config';
 const Admin = () => {
     const { initData } = useTelegram();
     const [activeTab, setActiveTab] = useState<'cpa' | 'games' | 'social'>('cpa');
-    const [loading, setLoading] = useState(false);
-
-    // CPA State
-    const [cpaNodes, setCpaNodes] = useState<any[]>([]);
     const [newCpa, setNewCpa] = useState({ title: '', reward: '', category: '', image_url: '', platform: '' });
-
-    // Games State
-    const [arcadeModules, setArcadeModules] = useState<any[]>([]);
     const [newGame, setNewGame] = useState({ title: '', iframe_url: '', image_url: '', category: 'Arcade' });
+    const [newSocial, setNewSocial] = useState({ title: '', channel_id: '', platform: 'Telegram', budget: '', reward: '1 EC' });
 
-    // Social Tasks State
-    const [socialTasks, setSocialTasks] = useState<any[]>([]);
-    const [newSocial, setNewSocial] = useState({ channel_id: '', platform: 'Telegram', budget: '', reward: '1 EC' });
-
-    const fetchAllData = async () => {
-        setLoading(true);
+    const handleCreateSocial = async () => {
         try {
-            const [cpaRes, gamesRes] = await Promise.all([
-                fetch(`${config.apiBaseUrl}/cpa/offers`),
-                fetch(`${config.apiBaseUrl}/games/list`)
-            ]);
-            const [cpaData, gamesData] = await Promise.all([cpaRes.json(), gamesRes.json()]);
-            if (cpaData.success) setCpaNodes(cpaData.offers);
-            // if (gamesData.success) setArcadeModules(gamesData.games);
+            const response = await fetch(`${config.apiBaseUrl}/social/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${initData}` },
+                body: JSON.stringify(newSocial)
+            });
+            if (response.ok) {
+                setNewSocial({ title: '', channel_id: '', platform: 'Telegram', budget: '', reward: '1 EC' });
+                alert('Social Node Deployed 🚀');
+            }
         } catch (error) {
-            console.error('Admin fetch error');
-        } finally {
-            setLoading(false);
+            alert('Failed to deploy social node');
         }
     };
 
-    useEffect(() => {
-        fetchAllData();
-    }, []);
-
     const handleCreateCpa = async () => {
-        setLoading(true);
         try {
-            const response = await fetch(`${config.apiBaseUrl}/admin/cpa/create`, {
+            const response = await fetch(`${config.apiBaseUrl}/cpa/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${initData}` },
                 body: JSON.stringify(newCpa)
             });
             if (response.ok) {
                 setNewCpa({ title: '', reward: '', category: '', image_url: '', platform: '' });
-                fetchAllData();
+                alert('CPA Node Deployed 🚀');
             }
         } catch (error) {
             alert('Failed to create node');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -109,10 +79,10 @@ const Admin = () => {
                     {activeTab === 'cpa' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="cpa">
                             <AdminForm title="Initialize New CPA Node" onSubmit={handleCreateCpa}>
-                                <AdminInput placeholder="Node Title (e.g. Binance KYC)" value={newCpa.title} onChange={(v) => setNewCpa({ ...newCpa, title: v })} />
-                                <AdminInput placeholder="Price / Reward (in EC)" value={newCpa.reward} onChange={(v) => setNewCpa({ ...newCpa, reward: v })} />
-                                <AdminInput placeholder="Category (e.g. Crypto)" value={newCpa.category} onChange={(v) => setNewCpa({ ...newCpa, category: v })} />
-                                <AdminInput placeholder="ImageKit URL" value={newCpa.image_url} onChange={(v) => setNewCpa({ ...newCpa, image_url: v })} />
+                                <AdminInput placeholder="Node Title (e.g. Binance KYC)" value={newCpa.title} onChange={(v: string) => setNewCpa({ ...newCpa, title: v })} />
+                                <AdminInput placeholder="Price / Reward (in EC)" value={newCpa.reward} onChange={(v: string) => setNewCpa({ ...newCpa, reward: v })} />
+                                <AdminInput placeholder="Category (e.g. Crypto)" value={newCpa.category} onChange={(v: string) => setNewCpa({ ...newCpa, category: v })} />
+                                <AdminInput placeholder="ImageKit URL" value={newCpa.image_url} onChange={(v: string) => setNewCpa({ ...newCpa, image_url: v })} />
                             </AdminForm>
                         </motion.div>
                     )}
@@ -120,9 +90,9 @@ const Admin = () => {
                     {activeTab === 'games' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="games">
                             <AdminForm title="Deploy Arcade Module (Playgama)" onSubmit={() => { }}>
-                                <AdminInput placeholder="Game Name" value={newGame.title} onChange={(v) => setNewGame({ ...newGame, title: v })} />
-                                <AdminInput placeholder="Iframe Endpoint / URL" value={newGame.iframe_url} onChange={(v) => setNewGame({ ...newGame, iframe_url: v })} />
-                                <AdminInput placeholder="Poster Identity (ImageKit URL)" value={newGame.image_url} onChange={(v) => setNewGame({ ...newGame, image_url: v })} />
+                                <AdminInput placeholder="Game Name" value={newGame.title} onChange={(v: string) => setNewGame({ ...newGame, title: v })} />
+                                <AdminInput placeholder="Iframe Endpoint / URL" value={newGame.iframe_url} onChange={(v: string) => setNewGame({ ...newGame, iframe_url: v })} />
+                                <AdminInput placeholder="Poster Identity (ImageKit URL)" value={newGame.image_url} onChange={(v: string) => setNewGame({ ...newGame, image_url: v })} />
                                 <div className="mt-4 bg-[#B2FF41]/5 border border-[#B2FF41]/10 rounded-2xl p-4 flex items-center gap-3">
                                     <History size={16} className="text-[#B2FF41]" />
                                     <p className="text-[10px] font-black uppercase text-[#B2FF41]/60 tracking-widest">Payout logic: 2 min dwell = 1 EC</p>
@@ -133,9 +103,19 @@ const Admin = () => {
 
                     {activeTab === 'social' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} key="social">
-                            <AdminForm title="Social Nexus Slot (Audience Sale)" onSubmit={() => { }}>
-                                <AdminInput placeholder="Channel ID / Link" value={newSocial.channel_id} onChange={(v) => setNewSocial({ ...newSocial, channel_id: v })} />
-                                <AdminInput placeholder="Advertiser Budget (NGN)" value={newSocial.budget} onChange={(v) => setNewSocial({ ...newSocial, budget: v })} />
+                            <AdminForm title="Social Nexus Slot (Audience Sale)" onSubmit={handleCreateSocial}>
+                                <AdminInput placeholder="Task Title (e.g. Join Our Bot)" value={newSocial.title} onChange={(v: string) => setNewSocial({ ...newSocial, title: v })} />
+                                <AdminInput placeholder="Channel ID / Link" value={newSocial.channel_id} onChange={(v: string) => setNewSocial({ ...newSocial, channel_id: v })} />
+                                <select
+                                    className="w-full h-16 bg-[#050505] border border-white/5 rounded-2xl px-6 font-bold text-xs uppercase tracking-widest text-white/40 mb-5"
+                                    value={newSocial.platform}
+                                    onChange={(e) => setNewSocial({ ...newSocial, platform: e.target.value })}
+                                >
+                                    <option value="Telegram">Telegram</option>
+                                    <option value="Instagram">Instagram</option>
+                                    <option value="X">X / Twitter</option>
+                                </select>
+                                <AdminInput placeholder="Advertiser Budget (NGN)" value={newSocial.budget} onChange={(v: string) => setNewSocial({ ...newSocial, budget: v })} />
                                 <div className="p-4 bg-[#121212] rounded-2xl border border-white/5 space-y-4">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
                                         <span className="text-white/20">Market Rate</span>

@@ -5,21 +5,19 @@ import {
     MessageCircle,
     Share2,
     ShieldCheck,
-    Zap,
-    Users,
-    CreditCard,
     ArrowRight,
     Trophy
 } from 'lucide-react';
 import { useState } from 'react';
 import useTelegram from '../hooks/useTelegram';
-import { formatCurrency } from './Earn';
+import config from '../config';
 
 const OrderFollowers = ({ onBack }: { onBack: () => void }) => {
-    const { webApp } = useTelegram();
+    const { webApp, initData } = useTelegram();
     const [platform, setPlatform] = useState<'telegram' | 'instagram' | 'x'>('telegram');
     const [quantity, setQuantity] = useState('100');
     const [link, setLink] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const platforms = [
         { id: 'telegram', icon: <MessageCircle size={20} />, name: 'Telegram', color: '#0088cc' },
@@ -30,17 +28,42 @@ const OrderFollowers = ({ onBack }: { onBack: () => void }) => {
     const pricePerFollower = 50; // 50 Naira
     const totalPrice = parseInt(quantity || '0') * pricePerFollower;
 
-    const handleOrder = () => {
+    const handleOrder = async () => {
         if (!link || !quantity) {
             webApp?.showAlert("All vector fields must be initialized.");
             return;
         }
 
-        webApp?.showConfirm(`Authorize Campaign Initialization?\n\nPlatform: ${platform.toUpperCase()}\nQuantity: ${quantity}\nTotal: ₦${totalPrice.toLocaleString()}`, (ok) => {
+        webApp?.showConfirm(`Authorize Campaign Initialization?\n\nPlatform: ${platform.toUpperCase()}\nQuantity: ${quantity}\nTotal: ₦${totalPrice.toLocaleString()}`, async (ok: boolean) => {
             if (ok) {
-                webApp.HapticFeedback.notificationOccurred('success');
-                webApp.showAlert("Order transmitted to operations. Deployment starts within 2 hours.");
-                onBack();
+                setLoading(true);
+                try {
+                    const response = await fetch(`${config.apiBaseUrl}/social/order`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${initData}`
+                        },
+                        body: JSON.stringify({
+                            platform,
+                            quantity,
+                            link,
+                            totalPrice
+                        })
+                    });
+
+                    if (response.ok) {
+                        webApp.HapticFeedback.notificationOccurred('success');
+                        webApp.showAlert("Order transmitted to operations. Deployment starts within 2 hours.");
+                        onBack();
+                    } else {
+                        webApp.showAlert("Protocol error: Order transmission failed.");
+                    }
+                } catch (error) {
+                    webApp.showAlert("Connectivity error: Operations offline.");
+                } finally {
+                    setLoading(false);
+                }
             }
         });
     };
@@ -75,8 +98,8 @@ const OrderFollowers = ({ onBack }: { onBack: () => void }) => {
                                     key={p.id}
                                     onClick={() => setPlatform(p.id as any)}
                                     className={`h-20 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all border ${platform === p.id
-                                            ? 'bg-[#121212] border-[#B2FF41] shadow-[0_0_20px_rgba(178,255,65,0.1)]'
-                                            : 'bg-[#0A0A0A] border-white/5 opacity-40'
+                                        ? 'bg-[#121212] border-[#B2FF41] shadow-[0_0_20px_rgba(178,255,65,0.1)]'
+                                        : 'bg-[#0A0A0A] border-white/5 opacity-40'
                                         }`}
                                 >
                                     <div style={{ color: p.color }}>{p.icon}</div>
@@ -138,9 +161,10 @@ const OrderFollowers = ({ onBack }: { onBack: () => void }) => {
                     {/* Action */}
                     <button
                         onClick={handleOrder}
-                        className="accent-btn w-full h-20 text-lg tracking-[0.3em] italic uppercase shadow-[0_15px_40px_rgba(178,255,65,0.2)]"
+                        disabled={loading}
+                        className="accent-btn w-full h-20 text-lg tracking-[0.3em] italic uppercase shadow-[0_15px_40px_rgba(178,255,65,0.2)] disabled:opacity-50"
                     >
-                        Deploy Audience <ArrowRight size={20} strokeWidth={3} />
+                        {loading ? "Transmitting..." : "Deploy Audience"} <ArrowRight size={20} strokeWidth={3} />
                     </button>
 
                     <div className="flex justify-center items-center gap-3 opacity-20">

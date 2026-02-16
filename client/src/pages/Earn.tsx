@@ -1,38 +1,20 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Zap,
-    TrendingUp,
-    Shield,
     ChevronLeft,
-    Search,
     Play,
-    Dribbble,
-    Rocket,
-    Gift,
-    Target,
-    Activity,
     Database,
-    Cpu,
-    CheckCircle2,
-    Lock,
-    Eye,
     RefreshCcw,
     Globe,
     Share2,
-    MessageSquare,
-    Heart,
     ArrowRight,
-    Star,
     Sparkles,
     Trophy,
     Crown,
     AlertTriangle,
-    Wallet,
     Coins,
-    DollarSign,
-    Users
+    Loader2
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
 
@@ -66,12 +48,12 @@ const REWARDS = [
     { id: 7, label: "VOID", value: 0, color: "#000000", weight: 40, tier: 'loss' }, // Split VOIDs for visual balance
 ];
 
-const Earn = () => {
-    const { initData, user } = useTelegram();
-    const [view, setView] = useState<'main' | 'cpa' | 'spin' | 'ads' | 'social'>('main');
+const Earn = ({ onNavigate: globalNavigate }: { onNavigate?: (tab: string) => void }) => {
+    const { initData } = useTelegram();
+    const [view, setView] = useState<'main' | 'cpa' | 'spin' | 'ads'>('main');
     const [offers, setOffers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isPremium, setIsPremium] = useState(false);
+    const [isPremium] = useState(false);
 
     useEffect(() => {
         const fetchOffers = async () => {
@@ -97,8 +79,7 @@ const Earn = () => {
             case 'spin': return <SpinWheelView isPremium={isPremium} onBack={() => setView('main')} />;
             case 'ads': return <AdsStreamView onBack={() => setView('main')} />;
             case 'cpa': return <CpaOffersView offers={offers} loading={loading} onBack={() => setView('main')} />;
-            case 'social': return <SocialTasksView onBack={() => setView('main')} />;
-            default: return <MainEarnGrid onNavigate={setView} isPremium={isPremium} />;
+            default: return <MainEarnGrid onNavigate={setView} onGlobalNavigate={globalNavigate} isPremium={isPremium} />;
         }
     };
 
@@ -113,7 +94,7 @@ const Earn = () => {
     );
 };
 
-const MainEarnGrid = ({ onNavigate, isPremium }: any) => (
+const MainEarnGrid = ({ onNavigate, onGlobalNavigate, isPremium }: any) => (
     <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -170,7 +151,7 @@ const MainEarnGrid = ({ onNavigate, isPremium }: any) => (
                 title="Social Nexus"
                 reward="100 EC/task"
                 color="#FFFFFF"
-                onClick={() => onNavigate('social')}
+                onClick={() => onGlobalNavigate('social')}
             />
         </div>
 
@@ -194,7 +175,7 @@ const MainEarnGrid = ({ onNavigate, isPremium }: any) => (
     </motion.div>
 );
 
-const EarningGridCard = ({ icon, title, reward, color, onClick, isSpecial }: any) => (
+const EarningGridCard = ({ icon, title, reward, onClick, isSpecial }: any) => (
     <motion.div
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.98 }}
@@ -464,32 +445,69 @@ const SpinWheelView = ({ isPremium, onBack }: { isPremium: boolean, onBack: () =
     );
 };
 
-const AdsStreamView = ({ onBack }: any) => (
-    <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -20 }}
-        className="relative z-10"
-    >
-        <header className="flex items-center gap-6 mb-12">
-            <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-[#121212] border border-white/5 flex items-center justify-center">
-                <ChevronLeft size={20} />
-            </button>
-            <h3 className="text-sm font-black uppercase tracking-[0.3em] italic">Ad-Stream Matrix</h3>
-        </header>
+const AdsStreamView = ({ onBack }: any) => {
+    const { webApp, initData } = useTelegram();
+    const [loading, setLoading] = useState(false);
 
-        <div className="premium-card p-12 bg-[#0A0A0A] text-center mb-12 relative overflow-hidden">
-            <div className="w-24 h-24 rounded-[3rem] bg-[#B2FF41]/10 flex items-center justify-center mx-auto mb-10 shadow-[0_0_40px_rgba(178,255,65,0.1)]">
-                <Play size={40} className="text-[#B2FF41] fill-[#B2FF41]" />
+    const handleAdWatch = async () => {
+        setLoading(true);
+        // Simulate ad watch time (Monetag usually takes 10-30s)
+        setTimeout(async () => {
+            try {
+                const response = await fetch(`${config.apiBaseUrl}/user/ad-completed`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${initData}` }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    webApp?.HapticFeedback.notificationOccurred('success');
+                    webApp?.showAlert(`Authorized: ${data.reward} EC Transferred to Vault.`);
+                }
+            } catch (error) {
+                console.error('Ad verification failed');
+            } finally {
+                setLoading(false);
+            }
+        }, 15000); // 15s simulated watch
+    };
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="relative z-10"
+        >
+            <header className="flex items-center gap-6 mb-12">
+                <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-[#121212] border border-white/5 flex items-center justify-center">
+                    <ChevronLeft size={20} />
+                </button>
+                <h3 className="text-sm font-black uppercase tracking-[0.3em] italic">Ad-Stream Matrix</h3>
+            </header>
+
+            <div className="premium-card p-12 bg-[#0A0A0A] text-center mb-12 relative overflow-hidden">
+                <div className="w-24 h-24 rounded-[3rem] bg-[#B2FF41]/10 flex items-center justify-center mx-auto mb-10 shadow-[0_0_40px_rgba(178,255,65,0.1)]">
+                    {loading ? (
+                        <Loader2 size={40} className="text-[#B2FF41] animate-spin" />
+                    ) : (
+                        <Play size={40} className="text-[#B2FF41] fill-[#B2FF41]" />
+                    )}
+                </div>
+                <h2 className="text-2xl font-black italic mb-4 uppercase">{loading ? 'Verifying Stream' : 'Initialize Stream'}</h2>
+                <p className="text-[11px] text-white/30 font-bold uppercase tracking-widest leading-relaxed mb-10">
+                    {loading ? 'Analyzing traffic patterns for verification...' : <>Watch to yield 5 EC <br /> (approx {formatCurrency(5).ngn} / {formatCurrency(5).usd})</>}
+                </p>
+                <button
+                    onClick={handleAdWatch}
+                    disabled={loading}
+                    className={`accent-btn w-full ${loading ? 'opacity-50' : ''}`}
+                >
+                    {loading ? 'STREAMING...' : 'Start Revenue Stream'}
+                </button>
             </div>
-            <h2 className="text-2xl font-black italic mb-4 uppercase">Initialize Stream</h2>
-            <p className="text-[11px] text-white/30 font-bold uppercase tracking-widest leading-relaxed mb-10">
-                Watch to yield 20 EC <br /> (approx {formatCurrency(20).ngn} / {formatCurrency(20).usd})
-            </p>
-            <button className="accent-btn w-full">Start Revenue Stream</button>
-        </div>
-    </motion.div>
-);
+        </motion.div>
+    );
+};
 
 const CpaOffersView = ({ offers, loading, onBack }: any) => (
     <motion.div
@@ -536,111 +554,5 @@ const CpaOffersView = ({ offers, loading, onBack }: any) => (
     </motion.div>
 );
 
-const SocialTasksView = ({ onBack }: any) => {
-    const [verifying, setVerifying] = useState<number | null>(null);
-    const [completed, setCompleted] = useState<number[]>([]);
-
-    const tasks = [
-        { id: 1, platform: 'Telegram', title: 'Join Earnify Alpha Channel', reward: '1 EC', icon: <MessageSquare size={18} />, link: 'https://t.me/EarnifyAlpha' },
-        { id: 2, platform: 'X / Twitter', title: 'Follow Founder Node', reward: '1 EC', icon: <Share2 size={18} />, link: 'https://x.com/Earnify' },
-        { id: 3, platform: 'Instagram', title: 'Like Latest Yield Post', reward: '1 EC', icon: <Heart size={18} />, link: 'https://instagram.com/Earnify' },
-        { id: 4, platform: 'Telegram', title: 'Join Partner Nexus', reward: '1 EC', icon: <Users size={18} />, link: 'https://t.me/PartnerNexus' },
-    ];
-
-    const handleTask = (task: any) => {
-        window.open(task.link, '_blank');
-        setVerifying(task.id);
-
-        // Protocol verification delay
-        setTimeout(() => {
-            setVerifying(null);
-            setCompleted(prev => [...prev, task.id]);
-        }, 5000);
-    };
-
-    return (
-        <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="relative z-10"
-        >
-            <header className="flex items-center gap-6 mb-12">
-                <button onClick={onBack} className="w-12 h-12 rounded-2xl bg-[#121212] border border-white/5 flex items-center justify-center">
-                    <ChevronLeft size={20} />
-                </button>
-                <div className="flex flex-col">
-                    <h3 className="text-sm font-black uppercase tracking-[0.3em] italic">Social Nexus</h3>
-                    <p className="text-[8px] font-bold text-[#B2FF41] uppercase tracking-[0.2em] mt-0.5 animate-pulse">Live Traffic Active</p>
-                </div>
-            </header>
-
-            <div className="bg-[#B2FF41]/5 border border-[#B2FF41]/10 rounded-[2rem] p-6 mb-10 flex items-center gap-5">
-                <div className="w-12 h-12 rounded-xl bg-[#B2FF41]/10 flex items-center justify-center text-[#B2FF41]">
-                    <Zap size={24} />
-                </div>
-                <div>
-                    <h4 className="text-[11px] font-black uppercase tracking-tight text-[#B2FF41]">Network Multiplier</h4>
-                    <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">Earn 1 EC per Authorized Follow</p>
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                {tasks.map((task) => {
-                    const isCompleted = completed.includes(task.id);
-                    const isVerifying = verifying === task.id;
-
-                    return (
-                        <div
-                            key={task.id}
-                            className={`premium-card p-6 flex items-center justify-between transition-all ${isCompleted ? 'opacity-40 grayscale pointer-events-none' : 'bg-[#121212]'
-                                }`}
-                        >
-                            <div className="flex items-center gap-5">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${task.platform === 'Telegram' ? 'border-sky-500/20 text-sky-400' :
-                                    task.platform === 'Instagram' ? 'border-pink-500/20 text-pink-400' :
-                                        'border-white/10 text-white/40'
-                                    } bg-black/40`}>
-                                    {task.icon}
-                                </div>
-                                <div>
-                                    <h5 className="text-[12px] font-black uppercase tracking-tight italic">{task.title}</h5>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest">{task.platform}</p>
-                                        <div className="w-1 h-1 rounded-full bg-white/5" />
-                                        <p className="text-[#B2FF41] text-[10px] font-black italic">{task.reward}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => handleTask(task)}
-                                disabled={isCompleted || isVerifying}
-                                className={`px-6 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isCompleted ? 'bg-white/5 text-white/20' :
-                                    isVerifying ? 'bg-[#B2FF41]/10 text-[#B2FF41] animate-pulse border border-[#B2FF41]/20' :
-                                        'bg-white text-black hover:scale-105 active:scale-95 shadow-xl'
-                                    }`}
-                            >
-                                {isCompleted ? 'SYNCED' : isVerifying ? 'VERIFYING...' : 'INITIALIZE'}
-                            </button>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <div className="mt-14 p-10 bg-gradient-to-br from-[#121212] to-black border border-white/5 rounded-[2.5rem] text-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[#B2FF41]/5 blur-3xl" />
-                <Users size={32} className="mx-auto text-white/10 mb-6" />
-                <h4 className="text-sm font-black italic uppercase mb-2 tracking-tighter">Become an Advertiser?</h4>
-                <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-relaxed mb-8 px-4">
-                    Host your node in our network Nexus. <br /> ₦50 per authorized follower.
-                </p>
-                <button className="text-[9px] font-black text-[#B2FF41] uppercase tracking-[0.2em] border border-[#B2FF41]/20 px-8 py-4 rounded-2xl hover:bg-[#B2FF41]/5 transition-all">
-                    View Space Pricing
-                </button>
-            </div>
-        </motion.div>
-    );
-};
 
 export default Earn;

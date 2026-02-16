@@ -1,18 +1,14 @@
 import { motion } from 'framer-motion';
 import {
     Users,
-    Gift,
     Copy,
     Share2,
     TrendingUp,
-    ChevronRight,
     Award,
     Network,
-    Cpu,
     Zap,
-    Coins,
-    DollarSign,
-    Check
+    Check,
+    ShieldCheck
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useTelegram from '../hooks/useTelegram';
@@ -63,7 +59,7 @@ const Referrals = () => {
 
     const shareLink = () => {
         const link = referralData?.referralLink || `https://t.me/EarnifyBot?start=${webApp?.initDataUnsafe?.user?.id}`;
-        const text = "🚀 Join Earnify Protocol and start yielding EC nodes daily! Use my link to get a 50 EC starter bonus:";
+        const text = "🚀 Authorize your node on the Earnify Protocol! Yield EC daily and get a 50 EC starter bonus using my invite:";
         window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
     };
 
@@ -84,6 +80,17 @@ const Referrals = () => {
                 <h1 className="text-4xl font-black italic tracking-tighter uppercase mb-2">Network <span className="text-[#B2FF41]">Nexus</span></h1>
                 <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest italic">Multi-Level Liquidity Expansion</p>
             </header>
+
+            {/* Security Protocol Notice */}
+            <div className="relative z-10 mb-10 p-5 bg-[#B2FF41]/5 border border-[#B2FF41]/20 rounded-3xl flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#B2FF41]/10 flex items-center justify-center text-[#B2FF41]">
+                    <ShieldCheck size={20} />
+                </div>
+                <div>
+                    <h4 className="text-[11px] font-black uppercase text-[#B2FF41] tracking-tight">Security Protocol Beta</h4>
+                    <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">3 active referrals required to unlock the Withdrawal Portal. Earn 20 EC per node.</p>
+                </div>
+            </div>
 
             {/* Network Visualization (Abstract SVG) */}
             <div className="relative h-48 mb-14 z-10 flex items-center justify-center">
@@ -168,21 +175,21 @@ const Referrals = () => {
             <div className="mt-10 bg-[#121212]/50 border border-white/5 rounded-[2.5rem] p-8 relative z-10">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <p className="text-[10px] font-black uppercase text-[#B2FF41]">Network Tier 2</p>
-                        <p className="text-[9px] text-white/20 font-bold uppercase tracking-[0.2em]">Next Unlock: 50 EC / Node</p>
+                        <p className="text-[10px] font-black uppercase text-[#B2FF41]">Network Expansion</p>
+                        <p className="text-[9px] text-white/20 font-bold uppercase tracking-[0.2em]">Requirement: 3 Nodes to Unlock Treasury</p>
                     </div>
                     <Award className="text-[#B2FF41]" size={20} />
                 </div>
                 <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                     <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: '65%' }}
+                        animate={{ width: `${Math.min(100, (referralData?.referralCount || 0) / 3 * 100)}%` }}
                         className="h-full bg-[#B2FF41]"
                     />
                 </div>
                 <div className="flex justify-between mt-3">
-                    <span className="text-[9px] font-black text-white/20">12 NODES</span>
-                    <span className="text-[9px] font-black text-white/20">20 NODES</span>
+                    <span className="text-[9px] font-black text-white/20">{referralData?.referralCount || 0} NODES</span>
+                    <span className="text-[9px] font-black text-white/20">3 NODES</span>
                 </div>
             </div>
         </div>

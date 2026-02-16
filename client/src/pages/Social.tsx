@@ -1,38 +1,56 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    ChevronLeft,
     Zap,
     MessageSquare,
     Share2,
     Heart,
     Users,
-    CheckCircle2
+    ArrowRight
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useTelegram from '../hooks/useTelegram';
-import { formatCurrency } from './Earn';
+import OrderFollowers from './OrderFollowers';
+import config from '../config'; // Assuming config is imported from here
 
 const Social = () => {
-    const [verifying, setVerifying] = useState<number | null>(null);
-    const [completed, setCompleted] = useState<number[]>([]);
+    const { webApp, initData } = useTelegram();
+    const [view, setView] = useState<'main' | 'order'>('main');
+    const [verifying, setVerifying] = useState<string | null>(null);
+    const [completed, setCompleted] = useState<string[]>([]);
+    const [tasks, setTasks] = useState<any[]>([]);
 
-    const tasks = [
-        { id: 1, platform: 'Telegram', title: 'Join Earnify Alpha Channel', reward: '1 EC', icon: <MessageSquare size={18} />, link: 'https://t.me/EarnifyAlpha' },
-        { id: 2, platform: 'X / Twitter', title: 'Follow Founder Node', reward: '1 EC', icon: <Share2 size={18} />, link: 'https://x.com/Earnify' },
-        { id: 3, platform: 'Instagram', title: 'Like Latest Yield Post', reward: '1 EC', icon: <Heart size={18} />, link: 'https://instagram.com/Earnify' },
-        { id: 4, platform: 'Telegram', title: 'Join Partner Nexus', reward: '1 EC', icon: <Users size={18} />, link: 'https://t.me/PartnerNexus' },
-    ];
+    const fetchTasks = async () => {
+        try {
+            const response = await fetch(`${config.apiBaseUrl}/social/list`, {
+                headers: { 'Authorization': `Bearer ${initData}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setTasks(data.tasks);
+            }
+        } catch (error) {
+            console.error('Fetch tasks error', error);
+        }
+    };
+
+    useEffect(() => {
+        if (initData) fetchTasks();
+    }, [initData]);
 
     const handleTask = (task: any) => {
-        window.open(task.link, '_blank');
+        const link = task.channel_id.startsWith('http') ? task.channel_id : `https://t.me/${task.channel_id.replace('@', '')}`;
+        window.open(link, '_blank');
         setVerifying(task.id);
 
         // Protocol verification delay
         setTimeout(() => {
             setVerifying(null);
             setCompleted(prev => [...prev, task.id]);
+            webApp?.HapticFeedback.notificationOccurred('success');
         }, 5000);
     };
+
+    if (view === 'order') return <OrderFollowers onBack={() => setView('main')} />;
 
     return (
         <div className="min-h-screen bg-[#050505] text-white px-6 pt-16 pb-36 font-jakarta">
@@ -75,11 +93,13 @@ const Social = () => {
                                     }`}
                             >
                                 <div className="flex items-center gap-5">
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${task.platform === 'Telegram' ? 'border-sky-500/20 text-sky-400' :
-                                        task.platform === 'Instagram' ? 'border-pink-500/20 text-pink-400' :
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${task.platform === 'Telegram' ? 'border-[#0088cc]/20 text-[#0088cc]' :
+                                        task.platform === 'Instagram' ? 'border-[#E1306C]/20 text-[#E1306C]' :
                                             'border-white/10 text-white/40'
                                         } bg-black/40`}>
-                                        {task.icon}
+                                        {task.platform === 'Telegram' && <MessageSquare size={18} />}
+                                        {task.platform === 'Instagram' && <Heart size={18} />}
+                                        {task.platform === 'X' && <Share2 size={18} />}
                                     </div>
                                     <div>
                                         <h5 className="text-[12px] font-black uppercase tracking-tight italic">{task.title}</h5>
@@ -106,16 +126,19 @@ const Social = () => {
                     })}
                 </div>
 
-                <div className="mt-14 p-10 bg-gradient-to-br from-[#121212] to-black border border-white/5 rounded-[2.5rem] text-center relative overflow-hidden">
+                <div
+                    onClick={() => setView('order')}
+                    className="mt-14 p-10 bg-gradient-to-br from-[#121212] to-black border border-white/5 rounded-[2.5rem] text-center relative overflow-hidden cursor-pointer hover:bg-[#1A1A1A] transition-all group"
+                >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-[#B2FF41]/5 blur-3xl" />
-                    <Users size={32} className="mx-auto text-white/10 mb-6" />
+                    <Users size={32} className="mx-auto text-white/10 mb-6 group-hover:text-[#B2FF41]/40 transition-colors" />
                     <h4 className="text-sm font-black italic uppercase mb-2 tracking-tighter">Buy Organic Followers?</h4>
                     <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-relaxed mb-8 px-4">
                         Boost your social accounts with real people <br /> ₦50 per permanent active follower.
                     </p>
-                    <button className="text-[9px] font-black text-[#B2FF41] uppercase tracking-[0.2em] border border-[#B2FF41]/20 px-8 py-4 rounded-2xl hover:bg-[#B2FF41]/5 transition-all">
-                        Order Followers
-                    </button>
+                    <div className="flex items-center justify-center gap-3 text-[9px] font-black text-[#B2FF41] uppercase tracking-[0.2em] border border-[#B2FF41]/20 px-8 py-4 rounded-2xl group-hover:bg-[#B2FF41] group-hover:text-black transition-all">
+                        Order Followers <ArrowRight size={14} />
+                    </div>
                 </div>
             </motion.div>
         </div>

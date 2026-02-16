@@ -1,20 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ArrowUpRight,
-    ArrowDownLeft,
-    CreditCard,
     Bell,
     Plus,
     Zap,
-    Users,
-    ChevronRight,
     History,
     TrendingUp,
-    ShieldCheck,
     Clock,
     Coins,
     DollarSign,
-    Wallet
+    Wallet,
+    Trophy
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import useTelegram from '../hooks/useTelegram';
@@ -34,7 +29,12 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             });
             const data = await response.json();
             if (data.success) {
-                setDashboardData(data.dashboard);
+                // Merge daily status into main data object for cleaner access
+                setDashboardData({
+                    ...data.dashboard,
+                    canClaim: data.dashboard.dailyStatus.canClaim,
+                    nextClaimIn: data.dashboard.dailyStatus.nextClaimIn
+                });
             }
         } catch (error) {
             console.error('Error fetching dashboard:', error);
@@ -42,6 +42,28 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             setLoading(false);
         }
     }, [initData]);
+
+    const handleDailyClaim = async () => {
+        if (!dashboardData?.canClaim) return;
+
+        try {
+            const response = await fetch(`${config.apiBaseUrl}/tasks/daily-claim`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${initData}` }
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                webApp?.HapticFeedback.notificationOccurred('success');
+                webApp?.showAlert(`Authorized: ${data.reward} EC Transferred to Vault.`);
+                fetchDashboardData();
+            } else {
+                webApp?.showAlert(data.message || 'Protocol Error');
+            }
+        } catch (error) {
+            webApp?.showAlert('Connectivity Failed');
+        }
+    };
 
     useEffect(() => {
         if (initData) {
@@ -138,6 +160,52 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                             <span className="text-sm font-black text-white/80 tracking-tight italic">{dashboardData?.pendingBalance?.toLocaleString() || '0.00'} EC</span>
                             <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest">{formatCurrency(dashboardData?.pendingBalance || 0).usd}</p>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Daily Streak Module */}
+            <section className="mb-12 relative z-10">
+                <div className={`premium-card p-6 border-t-2 ${dashboardData?.canClaim ? 'border-t-[#B2FF41]' : 'border-t-white/10'}`}>
+                    <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-[#B2FF41]/10 flex items-center justify-center text-[#B2FF41]">
+                                <Trophy size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-[11px] font-black uppercase tracking-tight italic text-[#B2FF41]">Daily Protocol Entry</h4>
+                                <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest">Day {dashboardData?.dailyStreak || 0} of 7 Phase Cycle</p>
+                            </div>
+                        </div>
+                        {dashboardData?.canClaim ? (
+                            <button
+                                onClick={handleDailyClaim}
+                                className="bg-[#B2FF41] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest animate-pulse"
+                            >
+                                Claim
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2 text-white/20">
+                                <Clock size={12} />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">{dashboardData?.nextClaimIn || 24}h Left</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-between gap-1.5">
+                        {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                            const isCurrent = (dashboardData?.dailyStreak % 7) + 1 === day && dashboardData?.canClaim;
+                            const isCompleted = day <= (dashboardData?.dailyStreak % 7) && !dashboardData?.canClaim || (day <= dashboardData?.dailyStreak && dashboardData?.dailyStreak <= 7);
+
+                            return (
+                                <div key={day} className="flex-1 space-y-2">
+                                    <div className={`h-1.5 rounded-full transition-all duration-500 ${isCompleted ? 'bg-[#B2FF41]' : isCurrent ? 'bg-[#B2FF41]/30 animate-pulse' : 'bg-white/5'
+                                        }`} />
+                                    <p className={`text-[8px] text-center font-black transition-colors ${isCompleted || isCurrent ? 'text-[#B2FF41]' : 'text-white/10'
+                                        }`}>D{day}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </section>

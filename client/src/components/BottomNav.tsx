@@ -1,19 +1,25 @@
 import { motion } from 'framer-motion';
-import { Home, Zap, Gamepad2, Users, Wallet, Share2, Crown } from 'lucide-react';
+import { Home, Zap, Wallet, Share2, Crown, Shield } from 'lucide-react';
 
 interface BottomNavProps {
     activeTab: string;
     onTabChange: (tabId: string) => void;
+    isAdmin?: boolean;
 }
 
-const BottomNav = ({ activeTab, onTabChange }: BottomNavProps) => {
-    const tabs = [
+const BottomNav = ({ activeTab, onTabChange, isAdmin = false }: BottomNavProps) => {
+    const baseTabs = [
         { id: 'home', icon: Home, label: 'Portal' },
         { id: 'earn', icon: Zap, label: 'Nodes' },
         { id: 'social', icon: Share2, label: 'Nexus' },
         { id: 'premium', icon: Crown, label: 'VIP' },
         { id: 'withdraw', icon: Wallet, label: 'Vault' },
     ];
+
+    // Add admin tab only if user is admin
+    const tabs = isAdmin
+        ? [...baseTabs, { id: 'admin', icon: Shield, label: 'Admin' }]
+        : baseTabs;
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-[100] px-6 pb-8 pt-2">

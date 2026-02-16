@@ -1,34 +1,30 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    ChevronLeft,
-    MoreHorizontal,
-    Wallet,
-    Info,
-    ArrowRight,
     CheckCircle2,
-    X,
     Building2,
     CreditCard,
     ArrowUpRight,
     ShieldCheck,
     History,
     AlertCircle,
-    Banknote,
-    Lock,
-    Coins,
-    DollarSign
+    Coins
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
 import { formatCurrency } from './Earn';
 
-const Withdraw = () => {
+const Withdraw = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
+    useEffect(() => {
+        if (onNavigate) (window as any).onNavigate = onNavigate;
+    }, [onNavigate]);
+
     const { initData } = useTelegram();
     const [balance, setBalance] = useState(0);
     const [amount, setAmount] = useState('');
     const [bank, setBank] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
+    const [totalReferrals, setTotalReferrals] = useState(0);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
@@ -41,6 +37,7 @@ const Withdraw = () => {
                 const data = await response.json();
                 if (data.success) {
                     setBalance(data.dashboard.balance);
+                    setTotalReferrals(data.dashboard.referralStats.totalReferrals);
                 }
             } catch (error) {
                 console.error('Failed to fetch balance');
@@ -221,23 +218,41 @@ const Withdraw = () => {
                 </div>
 
                 {/* Submit Action */}
-                <button
-                    onClick={handleWithdraw}
-                    disabled={loading || !amount || !bank || !accountNumber}
-                    className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase mt-4 transition-all ${(!amount || !bank || !accountNumber) ? 'opacity-30 grayscale pointer-events-none' : ''
-                        }`}
-                >
-                    {loading ? (
-                        <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-                            <History size={24} />
-                        </motion.div>
-                    ) : (
-                        <div className="flex items-center gap-4">
-                            <span>Relay Funds</span>
-                            <ArrowUpRight size={24} strokeWidth={3} />
+                {totalReferrals < 3 ? (
+                    <div className="space-y-6">
+                        <div className="p-6 bg-[#B2FF41]/5 border border-[#B2FF41]/20 rounded-3xl flex items-center gap-4">
+                            <AlertCircle size={24} className="text-[#B2FF41]" />
+                            <div>
+                                <h4 className="text-[11px] font-black uppercase text-[#B2FF41] tracking-tight">Withdrawal Protocol Locked</h4>
+                                <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">3 active referrals required to unlock treasury. Currently at {totalReferrals}/3.</p>
+                            </div>
                         </div>
-                    )}
-                </button>
+                        <button
+                            onClick={() => (window as any).onNavigate('referrals')}
+                            className="w-full h-24 rounded-[2.5rem] bg-[#B2FF41] text-black text-lg tracking-[0.3em] font-black italic uppercase shadow-[0_20px_40px_rgba(178,255,65,0.2)]"
+                        >
+                            Relay Referral Invites
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={handleWithdraw}
+                        disabled={loading || !amount || !bank || !accountNumber}
+                        className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase mt-4 transition-all ${(loading || !amount || !bank || !accountNumber) ? 'opacity-30 grayscale pointer-events-none' : ''
+                            }`}
+                    >
+                        {loading ? (
+                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                                <History size={24} />
+                            </motion.div>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span>Relay Funds</span>
+                                <ArrowUpRight size={24} strokeWidth={3} />
+                            </div>
+                        )}
+                    </button>
+                )}
             </div>
 
             <style>{`

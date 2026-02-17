@@ -10,23 +10,53 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import useTelegram from '../hooks/useTelegram';
+import config from '../config';
 
 const Premium = () => {
-    const { webApp } = useTelegram();
+    const { webApp, initData } = useTelegram();
     const [loading, setLoading] = useState(false);
+    const [showReceipt, setShowReceipt] = useState(false);
 
-    const handleStarsPayment = () => {
-        if (!webApp) return;
+    const handleStarsPayment = async () => {
+        if (!webApp || !initData) return;
+        webApp.HapticFeedback.impactOccurred('medium');
         setLoading(true);
-        // In a real scenario, you'd call your backend to create an Invoice URL 
-        // using the Telegram Stars currency 'XTR'
-        webApp.showConfirm("Initialize Secure Stars Protocol? (250 Stars)", (ok: boolean) => {
-            if (ok) {
-                webApp.HapticFeedback.notificationOccurred('success');
+        try {
+            const res = await fetch(`${config.apiBaseUrl}/payments/create-link`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${initData}`
+                },
+                body: JSON.stringify({
+                    title: 'Ultra Node VIP',
+                    description: 'Lifetime Premium Access',
+                    amount: 250,
+                    payload: { userId: webApp.initDataUnsafe.user?.id, type: 'VIP' }
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.success && data.invoiceLink) {
+                webApp.openInvoice(data.invoiceLink, (status: string) => {
+                    setLoading(false);
+                    if (status === 'paid') {
+                        webApp.HapticFeedback.notificationOccurred('success');
+                        setShowReceipt(true);
+                    }
+                });
+            } else {
+                setLoading(false);
+                webApp.showAlert('Invoice generation failed');
             }
+        } catch (e) {
             setLoading(false);
-        });
+            webApp.showAlert('Connection error');
+        }
     };
+
+    if (showReceipt) return <ReceiptView onFinish={() => window.location.reload()} />;
 
     return (
         <div className="min-h-screen bg-[#050505] text-white px-6 pt-16 pb-36 font-jakarta">
@@ -128,6 +158,49 @@ const Premium = () => {
         </div>
     );
 };
+
+const ReceiptView = ({ onFinish }: { onFinish: () => void }) => (
+    <div className="min-h-screen bg-[#050505] text-white px-6 flex items-center justify-center relative font-jakarta">
+        <div className="gradient-aura" />
+        <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full premium-card p-10 bg-white text-black relative"
+        >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-black rounded-full flex items-center justify-center border-8 border-[#050505]">
+                <ShieldCheck size={40} className="text-[#B2FF41]" />
+            </div>
+
+            <div className="text-center mt-6 mb-10">
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-black/40 mb-2">Protocol Certified</h2>
+                <h1 className="text-3xl font-black italic tracking-tighter uppercase">ULTRA NODE ACTIVE</h1>
+            </div>
+
+            <div className="space-y-6 border-y-2 border-dashed border-black/10 py-8 mb-8">
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-black/40">Status</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-[#B2FF41] bg-black px-3 py-1 rounded-lg">VERIFIED</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-black/40">Asset Code</span>
+                    <span className="text-xs font-black uppercase tracking-tight italic">EARN-VIP-{Math.floor(Math.random() * 9000) + 1000}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase text-black/40">Network Duration</span>
+                    <span className="text-xs font-black uppercase tracking-tight italic">LIFETIME ACCESS</span>
+                </div>
+            </div>
+
+            <button
+                onClick={onFinish}
+                className="w-full h-16 bg-black text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+            >
+                Enter Node
+            </button>
+            <p className="text-[8px] text-center text-black/30 font-bold uppercase tracking-widest mt-6 italic">Secure Ledger Sync Complete</p>
+        </motion.div>
+    </div>
+);
 
 const BenefitCard = ({ icon, title, desc, color }: any) => (
     <div className="premium-card p-6 flex items-start gap-5 bg-[#0D0D0D]/50 border-white/[0.03]">

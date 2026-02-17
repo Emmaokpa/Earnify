@@ -19,14 +19,19 @@ const Withdraw = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         if (onNavigate) (window as any).onNavigate = onNavigate;
     }, [onNavigate]);
 
-    const { initData } = useTelegram();
+    const { initData, webApp } = useTelegram();
     const [balance, setBalance] = useState(0);
     const [amount, setAmount] = useState('');
+    const [depositAmount, setDepositAmount] = useState('');
+    const [mode, setMode] = useState<'withdraw' | 'deposit'>('withdraw');
     const [bank, setBank] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
     const [totalReferrals, setTotalReferrals] = useState(0);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    const [isPremium, setIsPremium] = useState(false);
+    const [withdrawals, setWithdrawals] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchBalance = async () => {
@@ -38,6 +43,8 @@ const Withdraw = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                 if (data.success) {
                     setBalance(data.dashboard.balance);
                     setTotalReferrals(data.dashboard.referralStats.totalReferrals);
+                    setIsPremium(data.dashboard.isPremium || false);
+                    setWithdrawals(data.dashboard.recentTransactions.filter((tx: any) => tx.category?.startsWith('withdrawal')));
                 }
             } catch (error) {
                 console.error('Failed to fetch balance');
@@ -46,12 +53,55 @@ const Withdraw = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
         if (initData) fetchBalance();
     }, [initData]);
 
+    const handleDeposit = async () => {
+        if (!webApp || !initData) return;
+        const amountNum = Number(depositAmount);
+        if (!amountNum || amountNum < 1) {
+            alert('Invalid amount');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch(`${config.apiBaseUrl}/payments/create-link`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${initData}`
+                },
+                body: JSON.stringify({
+                    title: 'Wallet Liquidity',
+                    description: `Add ${amountNum} EC via Stars`,
+                    amount: amountNum,
+                    payload: { userId: webApp.initDataUnsafe.user?.id, type: 'CREDITS', credits: amountNum }
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.invoiceLink) {
+                webApp.openInvoice(data.invoiceLink, (status: string) => {
+                    setLoading(false);
+                    if (status === 'paid') {
+                        webApp.HapticFeedback.notificationOccurred('success');
+                        webApp.showAlert('Liquidity Added! refreshing...');
+                        window.location.reload();
+                    }
+                });
+            } else {
+                setLoading(false);
+                alert('Failed to generate invoice');
+            }
+        } catch (e) {
+            setLoading(false);
+            alert('Connection error');
+        }
+    };
+
     const handleWithdraw = async () => {
         const amountNum = Number(amount);
-        // 50 EC = 5000 NGN (if 1 EC = 100 NGN? Wait, user said 1 EC = 10 NGN)
-        // 50 EC = 500 NGN.
-        if (!amount || amountNum < 50) {
-            alert('Minimum withdrawal is 50 EC (₦500)');
+        const minVal = isPremium ? 50 : 300;
+
+        if (!amount || amountNum < minVal) {
+            alert(`Minimum withdrawal is ${minVal} EC for your tier.`);
             return;
         }
         if (amountNum > balance) {
@@ -157,102 +207,202 @@ const Withdraw = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                     </div>
                 </div>
 
-                {/* Transfer Configuration Form */}
-                <div className="premium-card p-8 bg-[#0A0A0A] border-white/[0.05] space-y-8">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] animate-pulse shadow-[0_0_10px_#B2FF41]" />
-                        <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 italic">Payout Config</h3>
-                    </div>
-
-                    <div className="space-y-6">
-                        {/* Amount Input */}
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center px-5">
-                                <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] italic">Transfer Units (EC)</label>
-                                {amount && (
-                                    <span className="text-[9px] font-black text-[#B2FF41] uppercase tracking-widest italic animate-pulse">
-                                        Value: {inputCurrency.ngn}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="relative group">
-                                <Coins className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
-                                <input
-                                    type="number"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                    placeholder="Min 50"
-                                    className="withdraw-input pl-16 text-2xl h-24"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Bank Selection */}
-                        <div className="space-y-3">
-                            <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Relay Bank</label>
-                            <div className="relative">
-                                <Building2 className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
-                                <input
-                                    value={bank}
-                                    onChange={(e) => setBank(e.target.value)}
-                                    placeholder="Opay / Kuda / Moniepoint"
-                                    className="withdraw-input pl-16"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Account Number */}
-                        <div className="space-y-3">
-                            <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Node Serial Number (A/C)</label>
-                            <div className="relative">
-                                <CreditCard className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
-                                <input
-                                    value={accountNumber}
-                                    onChange={(e) => setAccountNumber(e.target.value)}
-                                    placeholder="0123456789"
-                                    className="withdraw-input pl-16 font-mono tracking-[0.2em]"
-                                />
-                            </div>
-                        </div>
-                    </div>
+                {/* Operations Toggle */}
+                <div className="flex bg-[#121212] p-1.5 rounded-2xl border border-white/5">
+                    <button onClick={() => setMode('withdraw')} className={`flex-1 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'withdraw' ? 'bg-[#B2FF41] text-black shadow-lg shadow-[#B2FF41]/20' : 'text-white/40 hover:text-white'}`}>Withdraw</button>
+                    <button onClick={() => setMode('deposit')} className={`flex-1 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mode === 'deposit' ? 'bg-[#B2FF41] text-black shadow-lg shadow-[#B2FF41]/20' : 'text-white/40 hover:text-white'}`}>Add Funds</button>
                 </div>
 
-                {/* Submit Action */}
-                {totalReferrals < 3 ? (
-                    <div className="space-y-6">
-                        <div className="p-6 bg-[#B2FF41]/5 border border-[#B2FF41]/20 rounded-3xl flex items-center gap-4">
-                            <AlertCircle size={24} className="text-[#B2FF41]" />
-                            <div>
-                                <h4 className="text-[11px] font-black uppercase text-[#B2FF41] tracking-tight">Withdrawal Protocol Locked</h4>
-                                <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">3 active referrals required to unlock treasury. Currently at {totalReferrals}/3.</p>
+                {mode === 'withdraw' ? (
+                    <>
+                        {/* Transfer Configuration Form */}
+                        <div className="premium-card p-8 bg-[#0A0A0A] border-white/[0.05] space-y-8">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] animate-pulse shadow-[0_0_10px_#B2FF41]" />
+                                <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 italic">Payout Config</h3>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Amount Input */}
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center px-5">
+                                        <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] italic">Transfer Units (EC)</label>
+                                        {amount && (
+                                            <span className="text-[9px] font-black text-[#B2FF41] uppercase tracking-widest italic animate-pulse">
+                                                Value: {inputCurrency.ngn}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="relative group">
+                                        <Coins className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                        <input
+                                            type="number"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            placeholder={`Min ${isPremium ? 50 : 300}`}
+                                            className="withdraw-input pl-16 text-2xl h-24"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Bank Selection */}
+                                <div className="space-y-3">
+                                    <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Relay Bank</label>
+                                    <div className="relative">
+                                        <Building2 className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                        <input
+                                            value={bank}
+                                            onChange={(e) => setBank(e.target.value)}
+                                            placeholder="Opay / Kuda / Moniepoint"
+                                            className="withdraw-input pl-16"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Account Number */}
+                                <div className="space-y-3">
+                                    <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Node Serial Number (A/C)</label>
+                                    <div className="relative">
+                                        <CreditCard className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                        <input
+                                            value={accountNumber}
+                                            onChange={(e) => setAccountNumber(e.target.value)}
+                                            placeholder="0123456789"
+                                            className="withdraw-input pl-16 font-mono tracking-[0.2em]"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <button
-                            onClick={() => (window as any).onNavigate('referrals')}
-                            className="w-full h-24 rounded-[2.5rem] bg-[#B2FF41] text-black text-lg tracking-[0.3em] font-black italic uppercase shadow-[0_20px_40px_rgba(178,255,65,0.2)]"
-                        >
-                            Relay Referral Invites
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        onClick={handleWithdraw}
-                        disabled={loading || !amount || !bank || !accountNumber}
-                        className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase mt-4 transition-all ${(loading || !amount || !bank || !accountNumber) ? 'opacity-30 grayscale pointer-events-none' : ''
-                            }`}
-                    >
-                        {loading ? (
-                            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-                                <History size={24} />
-                            </motion.div>
+
+                        {/* Submit Action */}
+                        {totalReferrals < 3 ? (
+                            <div className="space-y-6">
+                                <div className="p-6 bg-[#B2FF41]/5 border border-[#B2FF41]/20 rounded-3xl flex items-center gap-4">
+                                    <AlertCircle size={24} className="text-[#B2FF41]" />
+                                    <div>
+                                        <h4 className="text-[11px] font-black uppercase text-[#B2FF41] tracking-tight">Withdrawal Protocol Locked</h4>
+                                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">3 active referrals required to unlock treasury. Currently at {totalReferrals}/3.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => (window as any).onNavigate('referrals')}
+                                    className="w-full h-24 rounded-[2.5rem] bg-[#B2FF41] text-black text-lg tracking-[0.3em] font-black italic uppercase shadow-[0_20px_40px_rgba(178,255,65,0.2)]"
+                                >
+                                    Relay Referral Invites
+                                </button>
+                            </div>
                         ) : (
-                            <div className="flex items-center gap-4">
-                                <span>Relay Funds</span>
-                                <ArrowUpRight size={24} strokeWidth={3} />
+                            <button
+                                onClick={handleWithdraw}
+                                disabled={loading || !amount || !bank || !accountNumber}
+                                className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase mt-4 transition-all ${(loading || !amount || !bank || !accountNumber) ? 'opacity-30 grayscale pointer-events-none' : ''
+                                    }`}
+                            >
+                                {loading ? (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                                        <History size={24} />
+                                    </motion.div>
+                                ) : (
+                                    <div className="flex items-center gap-4">
+                                        <span>Relay Funds</span>
+                                        <ArrowUpRight size={24} strokeWidth={3} />
+                                    </div>
+                                )}
+                            </button>
+                        )}
+                    </>
+                ) : (
+                    <div className="premium-card p-8 bg-[#0A0A0A] border-white/[0.05] space-y-8">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] animate-pulse shadow-[0_0_10px_#B2FF41]" />
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40 italic">Add Liquidity</h3>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="space-y-3">
+                                <label className="text-[10px] text-white/20 font-black uppercase tracking-[0.3em] ml-5 italic">Purchase Amount (Stars)</label>
+                                <div className="relative group">
+                                    <Coins className="absolute left-7 top-1/2 -translate-y-1/2 text-white/10" size={20} />
+                                    <input
+                                        type="number"
+                                        value={depositAmount}
+                                        onChange={(e) => setDepositAmount(e.target.value)}
+                                        placeholder="1 Star = 1 EC"
+                                        className="withdraw-input pl-16 text-2xl h-24"
+                                    />
+                                </div>
+                                <p className="text-center text-[10px] text-white/40 uppercase tracking-widest mt-2">
+                                    You will receive <span className="text-[#B2FF41] font-bold">{Number(depositAmount || 0)} EC</span>
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={handleDeposit}
+                                disabled={loading || !depositAmount}
+                                className={`accent-btn w-full h-24 text-xl tracking-[0.3em] italic uppercase transition-all ${(loading || !depositAmount) ? 'opacity-50 grayscale pointer-events-none' : ''}`}
+                            >
+                                {loading ? (
+                                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+                                        <History size={24} />
+                                    </motion.div>
+                                ) : (
+                                    <div className="flex items-center gap-4">
+                                        <span>Pay with Stars</span>
+                                        <ArrowUpRight size={24} strokeWidth={3} />
+                                    </div>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Treasury Ledger (History) */}
+                <section className="mt-14 relative z-10">
+                    <div className="flex items-center gap-4 mb-8">
+                        <History size={18} className="text-white/20" />
+                        <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/30 italic">Treasury Ledger</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                        {withdrawals.length > 0 ? (
+                            withdrawals.map((tx: any) => (
+                                <div key={tx.id} className="premium-card p-6 bg-[#121212] border-white/5 flex items-center justify-between group">
+                                    <div className="flex items-center gap-5">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${tx.status === 'approved' ? 'bg-[#B2FF41]/10 border-[#B2FF41]/20' :
+                                            tx.status === 'rejected' ? 'bg-red-500/10 border-red-500/20' :
+                                                'bg-white/5 border-white/10'
+                                            }`}>
+                                            <History size={18} className={tx.status === 'approved' ? 'text-[#B2FF41]' : tx.status === 'rejected' ? 'text-red-500' : 'text-white/20'} />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-extrabold text-sm tracking-tight">{tx.bank || 'Vault Transfer'}</h4>
+                                            <p className={`text-[10px] font-black uppercase tracking-widest mt-1 italic ${tx.status === 'approved' ? 'text-[#B2FF41]' :
+                                                tx.status === 'rejected' ? 'text-red-500' :
+                                                    'text-yellow-500'
+                                                }`}>
+                                                {tx.status?.toUpperCase() || 'PENDING'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-black text-lg italic tracking-tighter text-white">
+                                            {tx.amount} <span className="text-[10px] text-white/20">EC</span>
+                                        </p>
+                                        <p className="text-[9px] text-white/10 font-black uppercase tracking-widest mt-1">
+                                            {tx.accountNumber ? `****${tx.accountNumber.slice(-4)}` : 'Internal'}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center py-16 bg-[#121212] rounded-[2.5rem] border border-dashed border-white/5 opacity-30">
+                                <History size={40} className="mx-auto mb-4" />
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Ledger Null</span>
                             </div>
                         )}
-                    </button>
-                )}
+                    </div>
+                </section>
             </div>
 
             <style>{`

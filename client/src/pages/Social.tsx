@@ -16,6 +16,7 @@ const Social = () => {
     const { webApp, initData } = useTelegram();
     const [view, setView] = useState<'main' | 'order'>('main');
     const [verifying, setVerifying] = useState<string | null>(null);
+    const [loadingPulse, setLoadingPulse] = useState<string | null>(null);
     const [completed, setCompleted] = useState<string[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
 
@@ -27,6 +28,9 @@ const Social = () => {
             const data = await response.json();
             if (data.success) {
                 setTasks(data.tasks);
+                // Extract already completed tasks from the new server response
+                const serverCompleted = data.tasks.filter((t: any) => t.completed).map((t: any) => t.id);
+                setCompleted(serverCompleted);
             }
         } catch (error) {
             console.error('Fetch tasks error', error);
@@ -37,17 +41,39 @@ const Social = () => {
         if (initData) fetchTasks();
     }, [initData]);
 
-    const handleTask = (task: any) => {
+    const handleTaskLaunch = (task: any) => {
         const link = task.channel_id.startsWith('http') ? task.channel_id : `https://t.me/${task.channel_id.replace('@', '')}`;
         window.open(link, '_blank');
+        // Set to verifying status (means waiting for them to click verify button)
         setVerifying(task.id);
+    };
 
-        // Protocol verification delay
-        setTimeout(() => {
-            setVerifying(null);
-            setCompleted(prev => [...prev, task.id]);
-            webApp?.HapticFeedback.notificationOccurred('success');
-        }, 5000);
+    const handleVerifyCompletion = async (taskId: string) => {
+        setLoadingPulse(taskId);
+        try {
+            const response = await fetch(`${config.apiBaseUrl}/social/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${initData}`
+                },
+                body: JSON.stringify({ taskId })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                setCompleted(prev => [...prev, taskId]);
+                setVerifying(null);
+                webApp?.HapticFeedback.notificationOccurred('success');
+                webApp?.showAlert("Protocol Synced! Reward transmitted.");
+            } else {
+                webApp?.showAlert(data.message || "Membership not detected in Nexus.");
+            }
+        } catch (error) {
+            webApp?.showAlert("Encryption Error: Nexus offline.");
+        } finally {
+            setLoadingPulse(null);
+        }
     };
 
     if (view === 'order') return <OrderFollowers onBack={() => setView('main')} />;
@@ -77,14 +103,15 @@ const Social = () => {
                     </div>
                     <div>
                         <h4 className="text-[11px] font-black uppercase tracking-tight text-[#B2FF41]">Network Multiplier</h4>
-                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">Earn 1 EC per Authorized Follow</p>
+                        <p className="text-[9px] text-white/30 font-bold uppercase tracking-widest mt-0.5">Earn EC by joining verified nodes</p>
                     </div>
                 </div>
 
                 <div className="space-y-4">
                     {tasks.map((task) => {
                         const isCompleted = completed.includes(task.id);
-                        const isVerifying = verifying === task.id;
+                        const isAwaitingVerify = verifying === task.id;
+                        const isProcessing = loadingPulse === task.id;
 
                         return (
                             <div
@@ -111,16 +138,26 @@ const Social = () => {
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => handleTask(task)}
-                                    disabled={isCompleted || isVerifying}
-                                    className={`px-6 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isCompleted ? 'bg-white/5 text-white/20' :
-                                        isVerifying ? 'bg-[#B2FF41]/10 text-[#B2FF41] animate-pulse border border-[#B2FF41]/20' :
-                                            'bg-white text-black hover:scale-105 active:scale-95 shadow-xl'
-                                        }`}
-                                >
-                                    {isCompleted ? 'SYNCED' : isVerifying ? 'VERIFYING...' : 'INITIALIZE'}
-                                </button>
+                                {isCompleted ? (
+                                    <div className="px-6 h-12 rounded-xl bg-white/5 text-white/20 flex items-center justify-center text-[9px] font-black uppercase tracking-widest">
+                                        SYNCED
+                                    </div>
+                                ) : isAwaitingVerify ? (
+                                    <button
+                                        onClick={() => handleVerifyCompletion(task.id)}
+                                        disabled={isProcessing}
+                                        className={`px-6 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest bg-[#B2FF41] text-black shadow-[0_0_20px_rgba(178,255,65,0.3)] ${isProcessing ? 'animate-pulse' : ''}`}
+                                    >
+                                        {isProcessing ? 'SCANNING...' : 'VERIFY JOIN'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleTaskLaunch(task)}
+                                        className="px-6 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-black hover:scale-105 active:scale-95 shadow-xl"
+                                    >
+                                        INITIALIZE
+                                    </button>
+                                )}
                             </div>
                         );
                     })}
@@ -134,10 +171,10 @@ const Social = () => {
                     <Users size={32} className="mx-auto text-white/10 mb-6 group-hover:text-[#B2FF41]/40 transition-colors" />
                     <h4 className="text-sm font-black italic uppercase mb-2 tracking-tighter">Buy Organic Followers?</h4>
                     <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-relaxed mb-8 px-4">
-                        Boost your social accounts with real people <br /> ₦50 per permanent active follower.
+                        Boost your social accounts with real people <br /> Deployment starting at 5 EC per user.
                     </p>
                     <div className="flex items-center justify-center gap-3 text-[9px] font-black text-[#B2FF41] uppercase tracking-[0.2em] border border-[#B2FF41]/20 px-8 py-4 rounded-2xl group-hover:bg-[#B2FF41] group-hover:text-black transition-all">
-                        Order Followers <ArrowRight size={14} />
+                        Growth Terminal <ArrowRight size={14} />
                     </div>
                 </div>
             </motion.div>

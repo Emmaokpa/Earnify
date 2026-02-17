@@ -7,6 +7,7 @@ import Withdraw from './pages/Withdraw';
 import Admin from './pages/Admin';
 import Games from './pages/Games';
 import Social from './pages/Social';
+import Leaderboard from './pages/Leaderboard';
 import Premium from './pages/Premium';
 import BottomNav from './components/BottomNav';
 import useTelegram from './hooks/useTelegram';
@@ -42,7 +43,7 @@ function App() {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        referrerId: referrerId ? parseInt(referrerId) : undefined
+                        referrerId: referrerId // Pass as string (could be Code or ID)
                     })
                 });
 
@@ -88,6 +89,7 @@ function App() {
                 {activeTab === 'home' && <Dashboard onNavigate={setActiveTab} />}
                 {activeTab === 'earn' && <Earn onNavigate={setActiveTab} />}
                 {activeTab === 'social' && <Social />}
+                {activeTab === 'arena' && <Leaderboard />}
                 {activeTab === 'premium' && <Premium />}
                 {activeTab === 'referrals' && <Referrals />}
                 {activeTab === 'withdraw' && <Withdraw onNavigate={setActiveTab} />}

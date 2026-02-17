@@ -192,6 +192,48 @@ const Referrals = () => {
                     <span className="text-[9px] font-black text-white/20">3 NODES</span>
                 </div>
             </div>
+
+            {/* Referrals List Terminal */}
+            <div className="mt-14 relative z-10">
+                <div className="flex items-center gap-4 mb-8">
+                    <Users size={18} className="text-white/20" />
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/30 italic">Network Sub-Nodes</h3>
+                </div>
+
+                <div className="space-y-4">
+                    {referralData?.referredUsers?.length > 0 ? (
+                        referralData.referredUsers.map((user: any) => (
+                            <div key={user.id} className="premium-card p-5 bg-[#121212] flex items-center justify-between border-white/5 active:bg-[#1A1A1A] transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${user.isPremium ? 'bg-[#B2FF41] text-black' : 'bg-white/5 text-white/40'}`}>
+                                        {user.firstName ? user.firstName[0].toUpperCase() : 'U'}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-extrabold text-[12px] tracking-tight truncate max-w-[120px]">
+                                            {user.firstName}
+                                        </h4>
+                                        <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest mt-0.5 italic">{user.joinedAt}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black tracking-widest border ${user.isPremium
+                                            ? 'bg-[#B2FF41]/10 text-[#B2FF41] border-[#B2FF41]/20'
+                                            : 'bg-white/5 text-white/20 border-white/5'
+                                        }`}>
+                                        {user.status}
+                                    </span>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#B2FF41] opacity-30 shadow-[0_0_8px_#B2FF41]" />
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-16 bg-[#121212] rounded-[2.5rem] border border-dashed border-white/5 opacity-30">
+                            <Users size={32} className="mx-auto mb-4" />
+                            <span className="text-[10px] font-black uppercase tracking-[0.3em]">No Active Nodes</span>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

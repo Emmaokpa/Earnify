@@ -3,15 +3,14 @@ import {
     Bell,
     Plus,
     Zap,
-    History,
     TrendingUp,
     Clock,
     Coins,
     DollarSign,
-    Wallet,
-    Trophy
+    Crown,
+    History
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useTelegram from '../hooks/useTelegram';
 import config from '../config';
 import { formatCurrency } from './Earn';
@@ -22,6 +21,25 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [activeTxTab, setActiveTxTab] = useState('all');
 
+    const [timeLeft, setTimeLeft] = useState<{ h: number, m: number, s: number } | null>(null);
+    const timerRef = useRef<any>(null);
+
+    const updateTimer = useCallback((nextClaimDate: Date) => {
+        const now = new Date();
+        const diff = nextClaimDate.getTime() - now.getTime();
+
+        if (diff <= 0) {
+            setTimeLeft(null);
+            setDashboardData((prev: any) => ({ ...prev, canClaim: true }));
+            return;
+        }
+
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff / (1000 * 60)) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        setTimeLeft({ h, m, s });
+    }, []);
+
     const fetchDashboardData = useCallback(async () => {
         try {
             const response = await fetch(`${config.apiBaseUrl}/user/dashboard`, {
@@ -29,19 +47,34 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
             });
             const data = await response.json();
             if (data.success) {
-                // Merge daily status into main data object for cleaner access
+                const dashboard = data.dashboard;
                 setDashboardData({
-                    ...data.dashboard,
-                    canClaim: data.dashboard.dailyStatus.canClaim,
-                    nextClaimIn: data.dashboard.dailyStatus.nextClaimIn
+                    ...dashboard,
+                    canClaim: dashboard.dailyStatus.canClaim,
+                    nextClaimIn: dashboard.dailyStatus.nextClaimIn
                 });
+
+                if (!dashboard.dailyStatus.canClaim) {
+                    const nextDate = new Date();
+                    nextDate.setHours(nextDate.getHours() + dashboard.dailyStatus.nextClaimIn);
+
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    timerRef.current = setInterval(() => updateTimer(nextDate), 1000);
+                    updateTimer(nextDate);
+                }
             }
         } catch (error) {
             console.error('Error fetching dashboard:', error);
         } finally {
             setLoading(false);
         }
-    }, [initData]);
+    }, [initData, updateTimer]);
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, []);
 
     const handleDailyClaim = async () => {
         if (!dashboardData?.canClaim) return;
@@ -121,9 +154,23 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
                         <h2 className="text-lg font-black tracking-tight uppercase italic">{webApp?.initDataUnsafe?.user?.first_name || 'User'} <span className="text-[#B2FF41]">👋</span></h2>
                     </div>
                 </div>
-                <button className="w-12 h-12 rounded-2xl bg-[#121212] flex items-center justify-center border border-white/[0.05] hover:border-[#B2FF41]/30 transition-all active:scale-95 group">
-                    <Bell size={20} className="text-white/40 group-hover:text-[#B2FF41]" />
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => {
+                            webApp?.HapticFeedback.impactOccurred('light');
+                            onNavigate?.('premium');
+                        }}
+                        className="w-12 h-12 rounded-2xl bg-[#B2FF41]/10 flex items-center justify-center border border-[#B2FF41]/20 hover:bg-[#B2FF41]/20 transition-all active:scale-95 group shadow-[0_0_20px_rgba(178,255,65,0.1)]"
+                    >
+                        <Crown size={20} className="text-[#B2FF41]" />
+                    </button>
+                    <button
+                        onClick={() => webApp?.HapticFeedback.impactOccurred('light')}
+                        className="w-12 h-12 rounded-2xl bg-[#121212] flex items-center justify-center border border-white/[0.05] hover:border-[#B2FF41]/30 transition-all active:scale-95 group"
+                    >
+                        <Bell size={20} className="text-white/40 group-hover:text-[#B2FF41]" />
+                    </button>
+                </div>
             </header>
 
             {/* Premium Balance Card */}
@@ -166,82 +213,74 @@ const Dashboard = ({ onNavigate }: { onNavigate?: (tab: string) => void }) => {
 
             {/* Daily Streak Module */}
             <section className="mb-12 relative z-10">
-                <div className={`premium-card p-6 border-t-2 ${dashboardData?.canClaim ? 'border-t-[#B2FF41]' : 'border-t-white/10'}`}>
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#B2FF41]/10 flex items-center justify-center text-[#B2FF41]">
-                                <Trophy size={20} />
-                            </div>
-                            <div>
-                                <h4 className="text-[11px] font-black uppercase tracking-tight italic text-[#B2FF41]">Daily Protocol Entry</h4>
-                                <p className="text-[9px] text-white/20 font-bold uppercase tracking-widest">Day {dashboardData?.dailyStreak || 0} of 7 Phase Cycle</p>
-                            </div>
+                <button
+                    onClick={() => {
+                        webApp?.HapticFeedback.impactOccurred('medium');
+                        handleDailyClaim();
+                    }}
+                    disabled={!dashboardData?.canClaim}
+                    className={`w-full py-10 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 transition-all relative overflow-hidden group shadow-2xl ${dashboardData?.canClaim
+                        ? 'bg-[#B2FF41] text-black hover:scale-[1.02] active:scale-95'
+                        : 'bg-[#121212] text-white/20 border border-white/5 grayscale pointer-events-none'
+                        }`}
+                >
+                    {dashboardData?.canClaim && <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />}
+                    <div className="flex items-center gap-3">
+                        <Zap size={28} className={dashboardData?.canClaim ? 'animate-bounce' : ''} />
+                        <span className="text-2xl font-black uppercase italic tracking-tighter">
+                            {dashboardData?.canClaim ? 'Authorize Daily Yield' : 'Protocol Cooldown'}
+                        </span>
+                    </div>
+                    {dashboardData?.canClaim ? (
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Available for Synchronization</p>
+                    ) : timeLeft ? (
+                        <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.3em] text-[#B2FF41] animate-pulse">
+                            <Clock size={14} />
+                            <span>NODE RESET: {timeLeft.h}H {timeLeft.m}M {timeLeft.s}S</span>
                         </div>
-                        {dashboardData?.canClaim ? (
-                            <button
-                                onClick={handleDailyClaim}
-                                className="bg-[#B2FF41] text-black px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest animate-pulse"
-                            >
-                                Claim
-                            </button>
-                        ) : (
-                            <div className="flex items-center gap-2 text-white/20">
-                                <Clock size={12} />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">{dashboardData?.nextClaimIn || 24}h Left</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex justify-between gap-1.5">
-                        {[1, 2, 3, 4, 5, 6, 7].map((day) => {
-                            const isCurrent = (dashboardData?.dailyStreak % 7) + 1 === day && dashboardData?.canClaim;
-                            const isCompleted = day <= (dashboardData?.dailyStreak % 7) && !dashboardData?.canClaim || (day <= dashboardData?.dailyStreak && dashboardData?.dailyStreak <= 7);
-
-                            return (
-                                <div key={day} className="flex-1 space-y-2">
-                                    <div className={`h-1.5 rounded-full transition-all duration-500 ${isCompleted ? 'bg-[#B2FF41]' : isCurrent ? 'bg-[#B2FF41]/30 animate-pulse' : 'bg-white/5'
-                                        }`} />
-                                    <p className={`text-[8px] text-center font-black transition-colors ${isCompleted || isCurrent ? 'text-[#B2FF41]' : 'text-white/10'
-                                        }`}>D{day}</p>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+                    ) : (
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em]">Initializing Node...</p>
+                    )}
+                </button>
             </section>
 
-            {/* Main Action Hub */}
-            <section className="grid grid-cols-2 gap-5 mb-12 relative z-10">
+            {/* Quick Actions */}
+            <section className="grid grid-cols-2 gap-4 mb-14 relative z-10">
                 <ActionCard
-                    icon={<Zap size={24} />}
-                    title="Protocols"
-                    subtitle="Initialize Yield"
+                    icon={<Plus size={24} />}
+                    title="Add EC"
+                    subtitle="Deposit Stars"
                     color="#B2FF41"
-                    onClick={() => onNavigate?.('earn')}
+                    onClick={() => {
+                        webApp?.HapticFeedback.impactOccurred('light');
+                        onNavigate?.('withdraw');
+                    }}
                 />
                 <ActionCard
-                    icon={<Wallet size={24} />}
-                    title="Treasury"
-                    subtitle="Payout Hub"
+                    icon={<TrendingUp size={24} />}
+                    title="Transfer"
+                    subtitle="Bank Relay"
                     color="#FFFFFF"
-                    onClick={() => onNavigate?.('withdraw')}
+                    onClick={() => {
+                        webApp?.HapticFeedback.impactOccurred('light');
+                        onNavigate?.('withdraw');
+                    }}
                 />
             </section>
 
-            {/* Integrated Ledger History */}
-            <section className="mt-4 relative z-10">
-                <div className="flex justify-between items-end mb-8">
-                    <div>
-                        <h3 className="text-lg font-black tracking-tight uppercase italic">Asset Ledger</h3>
-                        <p className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] mt-1">Transaction Node Logs</p>
+            {/* Recent Activity */}
+            <section className="relative z-10">
+                <div className="flex justify-between items-center mb-10 px-2">
+                    <div className="flex items-center gap-4">
+                        <div className="w-1.5 h-8 bg-[#B2FF41] rounded-full" />
+                        <h3 className="text-xs font-black uppercase tracking-[0.4em] italic leading-none">Activity Matrix</h3>
                     </div>
-                    <button className="text-[10px] font-black text-[#B2FF41] uppercase tracking-widest bg-[#B2FF41]/10 px-4 py-2 rounded-xl border border-[#B2FF41]/20">History</button>
                 </div>
 
-                <div className="flex gap-2 mb-8 p-1.5 bg-[#121212] rounded-2xl border border-white/[0.03]">
-                    <TxTab active={activeTxTab === 'all'} onClick={() => setActiveTxTab('all')}>All</TxTab>
-                    <TxTab active={activeTxTab === 'earned'} onClick={() => setActiveTxTab('earned')}>Yield</TxTab>
-                    <TxTab active={activeTxTab === 'withdrawn'} onClick={() => setActiveTxTab('withdrawn')}>Payout</TxTab>
+                <div className="flex bg-[#121212] p-1.5 rounded-2xl border border-white/5 mb-8">
+                    <TxTab active={activeTxTab === 'all'} onClick={() => { setActiveTxTab('all'); webApp?.HapticFeedback.selectionChanged(); }}>Global</TxTab>
+                    <TxTab active={activeTxTab === 'earned'} onClick={() => { setActiveTxTab('earned'); webApp?.HapticFeedback.selectionChanged(); }}>Yield</TxTab>
+                    <TxTab active={activeTxTab === 'withdrawn'} onClick={() => { setActiveTxTab('withdrawn'); webApp?.HapticFeedback.selectionChanged(); }}>Payout</TxTab>
                 </div>
 
                 <div className="space-y-4">
